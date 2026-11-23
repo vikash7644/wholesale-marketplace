@@ -10,7 +10,7 @@ function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("sh
 function setCategory(c){state.category=c;renderCategories();renderFilters();renderProducts();$("#catalogue").scrollIntoView({behavior:"smooth"});}
 function openCart(){renderCart();$("#overlay").classList.add("show");$("#cartDrawer").classList.add("show")}
 function closeCart(){$("#overlay").classList.remove("show");$("#cartDrawer").classList.remove("show")}
-function openSeller(){$("#sellerModal").classList.add("show");$("#overlay").classList.add("show")}
+function openSeller(){$("#sellerModal").classList.add("show");$("#overlay").classList.add("show");if(typeof loadSellerProducts==="function")loadSellerProducts()}
 function closeSeller(){$("#sellerModal").classList.remove("show");$("#overlay").classList.remove("show")}
 $("#categoryGrid").addEventListener("click",e=>{const b=e.target.closest("[data-category]");if(b)setCategory(b.dataset.category)});
 $("#filterRow").addEventListener("click",e=>{const b=e.target.closest("[data-filter]");if(b){state.category=b.dataset.filter;renderCategories();renderFilters();renderProducts()}});
@@ -145,5 +145,3 @@ document.querySelector("#productForm")?.addEventListener("submit", async event =
     setProductMessage(error.message || "Product upload failed. Please try again.", true);
   } finally { submit.disabled = false; }
 });
-const originalOpenSeller = openSeller;
-openSeller = function() { originalOpenSeller(); loadSellerProducts(); };
