@@ -36,3 +36,6 @@
 .admin-product-main{display:flex!important;align-items:center;gap:10px}
 .admin-product-main img{width:48px;height:48px;object-fit:cover;border-radius:7px}
 @media(max-width:480px){.admin-row{align-items:flex-start;flex-direction:column}.admin-actions{width:100%}.admin-actions button{flex:1}}
+
+.product-photo{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.product-visual{overflow:hidden}
