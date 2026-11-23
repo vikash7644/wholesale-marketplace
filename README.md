@@ -31,6 +31,11 @@ Import this GitHub repository into Vercel. Framework preset: **Other**. Build co
 - Admin permissions rely on trusted Supabase `app_metadata.role = admin`, never user-editable metadata.
 - These migrations are applied to the Supabase project `wholesale-marketplace` in `ap-south-1`. Project status was verified as `ACTIVE_HEALTHY`.
 
+## Live product catalogue
+
+- Public catalogue fetches active, approved products from Supabase and displays their uploaded images, wholesale price, unit and MOQ.
+- Sample cards remain as a preview fallback until the first approved live listing exists; they are not real supplier offers and cannot be used for checkout.
+
 ## Admin dashboard
 
 - The admin dashboard is visible only when the signed-in user's trusted Supabase `app_metadata.role` is `admin`.
