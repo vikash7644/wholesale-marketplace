@@ -15,11 +15,18 @@ This is a static site. Open `index.html` in a browser, or serve the folder with 
 ## Deploy on Vercel
 Import this GitHub repository into Vercel. Framework preset: **Other**. Build command: leave empty. Output directory: `.`.
 
+## Backend foundation
+- `supabase/migrations/202611230001_marketplace_core.sql` defines profiles, seller applications, products, orders, order items, supplier fulfilments and commission records.
+- Row Level Security is enabled on every marketplace table; public catalogue access is limited to active products from approved sellers.
+- Admin permissions rely on trusted Supabase `app_metadata.role = admin`, never user-editable metadata.
+- The migration is committed but has **not** been applied: no Supabase project is connected yet.
+
 ## Important next steps before accepting real orders
-1. Connect authentication and database.
-2. Create shopkeeper, seller, product, order and commission records with role-based access.
-3. Add admin approval and supplier fulfilment workflow.
-4. Configure verified business contact details and payment methods.
-5. Add privacy policy, terms, refund and seller policies.
+1. Select the Supabase organization and create/connect a project.
+2. Apply and test the migration, including RLS and admin approval paths.
+3. Connect frontend authentication and database calls.
+4. Add supplier forwarding, tracking and commission calculations.
+5. Configure verified business contact details and payment methods.
+6. Add privacy policy, terms, refund and seller policies.
 
 Product names and prices in this first UI are sample placeholders, not live supplier quotations.
