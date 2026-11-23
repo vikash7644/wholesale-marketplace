@@ -23,3 +23,34 @@ $("#checkoutBtn").addEventListener("click",()=>toast("Order enquiry will be enab
 $("#sellerForm").addEventListener("submit",async e=>{e.preventDefault();const msg=$("#formMessage");if(!window.marketSupabase){msg.textContent="Account service is not configured.";return;}const {data:{user}}=await window.marketSupabase.auth.getUser();if(!user){msg.textContent="Please sign in first, then submit your seller application.";return;}const f=new FormData(e.currentTarget);const {error}=await window.marketSupabase.from("seller_applications").insert({user_id:user.id,business_name:f.get("business"),contact_name:f.get("name"),phone:f.get("phone"),category:f.get("category")});msg.textContent=error?error.message:"Application submitted! Status: pending admin review.";if(!error)e.currentTarget.reset();});
 renderCategories();renderFilters();renderProducts();renderCart();
 const SUPABASE_URL="https://vhnelmarhqvsncgczazk.supabase.co";const SUPABASE_PUBLISHABLE_KEY="sb_publishable_2uLOLMsuzy2vI9FPe2GbrQ_M94h136I";window.marketSupabase=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY)||null;let authMode="signin";function showAuth(){$("#authModal").classList.add("show");$("#overlay").classList.add("show");}function hideAuth(){$("#authModal").classList.remove("show");$("#overlay").classList.remove("show");}function setAuthMessage(m){$("#authMessage").textContent=m;}function updateAuthButton(user){$("#authOpen").textContent=user?(user.email?.split("@")[0]||"My account")+" · Sign out":"Sign in / Join";}$("#authOpen").addEventListener("click",async()=>{if(!window.marketSupabase){toast("Account service unavailable");return;}const {data:{user}}=await window.marketSupabase.auth.getUser();if(user){await window.marketSupabase.auth.signOut();updateAuthButton(null);toast("Signed out");}else showAuth();});$("#authClose").addEventListener("click",hideAuth);$("#authToggle").addEventListener("click",()=>{authMode=authMode==="signin"?"signup":"signin";$("#authTitle").textContent=authMode==="signin"?"Welcome back":"Create your account";$("#authHelp").textContent=authMode==="signin"?"Sign in to continue.":"Join as a retailer and discover wholesale products.";$("#authSubmit").textContent=authMode==="signin"?"Sign in":"Create account";$("#authToggle").textContent=authMode==="signin"?"Create account":"I already have an account";$("#fullNameLabel").hidden=authMode!=="signup";setAuthMessage("");});$("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!window.marketSupabase){setAuthMessage("Account service unavailable. Refresh and try again.");return;}const f=new FormData(e.currentTarget);$("#authSubmit").disabled=true;let result;if(authMode==="signup"){result=await window.marketSupabase.auth.signUp({email:f.get("email"),password:f.get("password"),options:{data:{full_name:f.get("full_name")}}});if(!result.error&&result.data.user)await window.marketSupabase.from("profiles").upsert({id:result.data.user.id,full_name:f.get("full_name")||""});}else result=await window.marketSupabase.auth.signInWithPassword({email:f.get("email"),password:f.get("password")});$("#authSubmit").disabled=false;if(result.error){setAuthMessage(result.error.message);return;}if(authMode==="signup"&&!result.data.session){setAuthMessage("Account created. Check your email to confirm, then sign in.");return;}updateAuthButton(result.data.user);setAuthMessage("Signed in successfully.");setTimeout(hideAuth,700);});if(window.marketSupabase){window.marketSupabase.auth.getUser().then(({data})=>updateAuthButton(data.user));window.marketSupabase.auth.onAuthStateChange((_event,session)=>updateAuthButton(session?.user||null));}
+
+// Authenticated backend API client. The demo catalogue is deliberately not orderable
+// until real UUID-backed supplier products and a delivery-address form are connected.
+window.marketplaceApi = {
+  async request(path, options = {}) {
+    if (!window.marketSupabase) throw new Error("Account service is not configured");
+    const { data: { session } } = await window.marketSupabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Please sign in first");
+    const response = await fetch(SUPABASE_URL + "/functions/v1/marketplace-api/" + path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": "Bearer " + session.access_token,
+        ...(options.headers || {})
+      }
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "Marketplace API request failed");
+    return result;
+  },
+  placeOrder({ items, delivery_address, buyer_note = "" }) {
+    return this.request("orders", {
+      method: "POST",
+      body: JSON.stringify({ items, delivery_address, buyer_note })
+    });
+  },
+  getMyOrders() {
+    return this.request("orders", { method: "GET" });
+  }
+};
