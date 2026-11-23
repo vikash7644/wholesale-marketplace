@@ -17,14 +17,16 @@ Import this GitHub repository into Vercel. Framework preset: **Other**. Build co
 
 ## Backend foundation
 - `supabase/migrations/202611230001_marketplace_core.sql` defines profiles, seller applications, products, orders, order items, supplier fulfilments and commission records.
-- Row Level Security is enabled on every marketplace table; public catalogue access is limited to active products from approved sellers.
+- `202611230002_secure_checkout.sql` hardens RLS and adds a trusted checkout RPC that calculates prices, MOQ, stock and totals on the database side.
+- `202611230003_checkout_null_guard.sql` rejects malformed/null checkout payloads.
+- All marketplace tables have Row Level Security enabled. Public catalogue access is limited to active products from approved sellers.
 - Admin permissions rely on trusted Supabase `app_metadata.role = admin`, never user-editable metadata.
-- The migration is committed but has **not** been applied: no Supabase project is connected yet.
+- These migrations are applied to the Supabase project `wholesale-marketplace` in `ap-south-1`. Project status was verified as `ACTIVE_HEALTHY`.
 
 ## Important next steps before accepting real orders
-1. Select the Supabase organization and create/connect a project.
-2. Apply and test the migration, including RLS and admin approval paths.
-3. Connect frontend authentication and database calls.
+1. Connect frontend authentication and database calls using the public publishable key only.
+2. Test signup/login, seller application, catalogue visibility and checkout against real authenticated users.
+3. Add admin review tools for seller approval and product activation.
 4. Add supplier forwarding, tracking and commission calculations.
 5. Configure verified business contact details and payment methods.
 6. Add privacy policy, terms, refund and seller policies.
