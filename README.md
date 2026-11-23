@@ -49,7 +49,7 @@ A mobile-first B2B wholesale and multi-vendor marketplace. The working name is p
 ## Orders and supplier fulfilment
 
 - The Edge Function exposes `POST /orders` and `GET /orders`; the frontend helper is `window.marketplaceApi`.
-- The visible catalogue still contains sample placeholder IDs until real products exist. The checkout UI remains disabled; do not accept real orders yet.
+- The catalogue starts with clearly labelled sample cards and switches to approved live database products when available. Checkout is enabled only for live UUID-backed products and signed-in buyers; it captures recipient, phone, full address, city, state and PIN code, then submits an order request through the authenticated Edge Function. No online payment is collected yet.
 - A delivery-address capture and full browser checkout test with real database product UUIDs are still required.
 - Supplier handoff details are currently saved as internal records only. The app does not automatically send WhatsApp, SMS, email or purchase orders to suppliers.
 
