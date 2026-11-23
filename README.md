@@ -1,82 +1,87 @@
 # VyaparSetu — Wholesale Marketplace
 
-A mobile-first B2B wholesale and multi-vendor marketplace frontend.
+A mobile-first B2B wholesale and multi-vendor marketplace. The working name is provisional.
 
-## Current preview features
-- Responsive landing page and category discovery
-- Product catalogue with category filters, search and sorting
-- Client-side cart and quantity controls
-- Supabase email/password signup and login
-- Seller application submission for authenticated users
-- Seller applications remain pending admin review
-- Approved sellers can upload JPG/PNG/WEBP product photos (up to 5 MB) and submit product name, description, category, wholesale price, unit, MOQ and stock
-- Seller product listings remain inactive until admin activation
-- Supabase Storage bucket `product-images` stores public catalogue images; authenticated uploads are restricted to each seller's own folder
-- Supabase Edge Function `marketplace-api` is deployed with JWT verification enabled
-- Authenticated API routes: `POST /orders` (trusted database checkout RPC) and `GET /orders` (buyer-scoped order history)
-- Frontend API client is exposed as `window.marketplaceApi.placeOrder(...)` and `window.marketplaceApi.getMyOrders()`
-- Checkout UI is present but intentionally disabled until real catalogue products and delivery details are connected
+## Current implementation
 
-## Run locally
-This is a static site. Open `index.html` in a browser, or serve the folder with any static web server.
+- Responsive storefront with category discovery, search, sorting and cart preview.
+- Supabase email/password signup, login and logout.
+- Seller application submission for authenticated users; applications start as pending.
+- Approved sellers can submit product details and JPG/PNG/WEBP photos (up to 5 MB).
+- New seller listings are inactive until admin activation.
+- Public catalogue reads active products from approved sellers; sample cards are preview-only fallbacks.
+- Admin dashboard supports seller application review, product activation/deactivation, order status updates and supplier handoff records.
+- Supabase Edge Function `marketplace-api` is active with JWT verification enabled. It provides authenticated order creation and buyer-scoped order history APIs.
+- Project-scoped commission registry, rules, ledger and payout tables exist. Rules are inactive and default to 0 bps.
 
-## Deploy on Vercel
-Import this GitHub repository into Vercel. Framework preset: **Other**. Build command: leave empty. Output directory: `.`.
+## Live deployment
 
-## Backend foundation
-- `supabase/migrations/202611230001_marketplace_core.sql` defines profiles, seller applications, products, orders, order items, supplier fulfilments and commission records.
-- `202611230002_secure_checkout.sql` hardens RLS and adds a trusted checkout RPC that calculates prices, MOQ, stock and totals on the database side.
-- `202611230003_checkout_null_guard.sql` rejects malformed/null checkout payloads.
-- All marketplace tables have Row Level Security enabled. Public catalogue access is limited to active products from approved sellers.
-- Admin permissions rely on trusted Supabase `app_metadata.role = admin`, never user-editable metadata.
-- These migrations are applied to the Supabase project `wholesale-marketplace` in `ap-south-1`. Project status was verified as `ACTIVE_HEALTHY`.
+- Production: https://wholesale-marketplace-five.vercel.app
+- Vercel project: `wholesale-marketplace`
+- The latest production deployment was confirmed `READY`.
+- Deployment currently uses direct source deployment. GitHub commits do not automatically deploy until Vercel Git integration is configured or a new deployment is explicitly created.
 
-## Live product catalogue
+## Backend and security
 
-- Public catalogue fetches active, approved products from Supabase and displays their uploaded images, wholesale price, unit and MOQ.
-- Sample cards remain as a preview fallback until the first approved live listing exists; they are not real supplier offers and cannot be used for checkout.
+- Backend: Supabase PostgreSQL, Auth, Row Level Security, Storage and Edge Functions. There is no separate Node/Express server in this version.
+- Supabase project: `wholesale-marketplace`, region `ap-south-1`.
+- Core schema: profiles, seller applications, products, orders, order items, supplier fulfilments and commission records.
+- Checkout uses a trusted database RPC for price, MOQ, stock and total validation.
+- Direct buyer inserts into orders/order_items are restricted; the API requires a valid user JWT.
+- Admin authorization uses trusted `app_metadata.role = admin`; user-editable metadata is not used.
+- Admin RLS policies were inspected and verified on seller applications, products, orders, supplier fulfilments and commission management tables.
+- Never expose a Supabase service-role/secret key in browser code.
 
-## Order operations
+## Seller uploads
 
-- Admin dashboard lists orders with buyer delivery address, item summary, totals and current status.
-- Admin can update order status and save a supplier handoff record (supplier name/contact, handoff status, tracking reference and internal note).
-- Saving supplier details is an internal record only; the app does not automatically send WhatsApp, SMS, email or purchase orders to suppliers yet.
+- Storage bucket: `product-images`, public read, 5 MB limit, JPEG/PNG/WEBP allowlist.
+- Authenticated uploads are restricted to a folder named for the seller's own user ID.
+- Approved sellers can submit listings; sellers cannot activate their own listings.
+- Migrations: `202611230006_product_image_storage.sql` and `202611230007_seller_product_dashboard_read_policy.sql`.
 
-## Admin dashboard
+## Admin operations and owner setup
 
-- The admin dashboard is visible only when the signed-in user's trusted Supabase `app_metadata.role` is `admin`.
-- It lists seller applications and product submissions, with approve/reject and activate/deactivate actions. Database RLS remains the authorization boundary.
-- No public role-escalation or client-side admin assignment is provided. The first owner/admin must be granted the `role=admin` app_metadata claim through a trusted Supabase Auth administration process; never put a service-role key in browser code.
-- Admin actions have not yet been exercised with a real admin account.
+- The admin dashboard is shown only to a signed-in user whose trusted Supabase app metadata contains `role=admin`.
+- It supports approve/reject seller applications, activate/deactivate products, update order status and save supplier contact/tracking details.
+- No admin user has been provisioned through this repository. The first owner account must be granted the admin app-metadata claim through a trusted Supabase Auth administration process. Do not add a public admin signup or put privileged keys in the frontend.
+- The admin interface and RLS policies have not yet been exercised end-to-end with a real admin account.
 
-## Seller product uploads
+## Orders and supplier fulfilment
 
-- Storage bucket `product-images` is configured with a 5 MB limit and JPEG/PNG/WEBP allowlist.
-- Storage RLS restricts uploads to a folder named for the authenticated user ID; sellers can manage only their own uploaded images.
-- Product insert policy requires an approved seller and stores new listings as inactive for admin review.
-- Migration `202611230006_product_image_storage.sql` creates the bucket and policies; migration `202611230007_seller_product_dashboard_read_policy.sql` allows sellers to view their own pending listings.
-- The seller modal includes the upload form and seller's product list. The form is hidden until seller approval.
-
-## Application API backend
-
-- Deployed function: `marketplace-api` (active; JWT verification enabled).
-- The function validates the signed-in user, validates cart payloads, delegates price/MOQ/stock checks to the database checkout RPC, and returns an order ID.
-- Order history is filtered by the authenticated buyer ID. No service-role key is exposed to the browser.
-- Frontend helper is available in `app.js` as `window.marketplaceApi`.
-- The current visible catalogue is still sample/demo data with numeric placeholder IDs. Do not submit real orders until it is replaced with database-backed UUID product records and a delivery-address form. API deployment is confirmed; end-to-end browser checkout has not yet been tested.
+- The Edge Function exposes `POST /orders` and `GET /orders`; the frontend helper is `window.marketplaceApi`.
+- The visible catalogue still contains sample placeholder IDs until real products exist. The checkout UI remains disabled; do not accept real orders yet.
+- A delivery-address capture and full browser checkout test with real database product UUIDs are still required.
+- Supplier handoff details are currently saved as internal records only. The app does not automatically send WhatsApp, SMS, email or purchase orders to suppliers.
 
 ## Commission management
 
-- Project-scoped commission management is installed: independent project registry, configurable commission rules (project/category/seller scope), immutable-style commission ledger entries, and payout records.
-- The Wholesale Marketplace is registered as the first project in this commission system. Other businesses/projects must be onboarded explicitly; this does not automatically connect or mix their revenue.
-- Commission rules default to inactive and 0 basis points until an owner configures and approves actual rates. Ledger/payout rows are admin-only; no live commission collection or payouts are enabled yet.
+- Project registry, configurable rules, commission ledger and payout records are installed.
+- The marketplace is registered as a project. Commission rules remain inactive at 0 basis points; no live commission calculation, collection or payout is enabled.
+- Rates and payout terms must be agreed before enabling commission.
 
-## Important next steps before accepting real orders
-1. End-to-end test signup/login and seller application with a real test account.
-2. Build an authenticated admin review interface and a safe way to assign the first admin role.
-3. Replace sample products with supplier-approved product records and images.
-4. Enable checkout only after adding delivery address capture and validating the trusted order RPC.
-5. Define the marketplace commission rate, then implement commission ledger entries and supplier forwarding/tracking.
-6. Configure verified business contact details, payment methods, privacy policy, terms, refund and seller policies.
+## Verified environment snapshot
 
-Product names and prices in this first UI are sample placeholders, not live supplier quotations.
+- Production Vercel deployment: `READY`.
+- Supabase project: `ACTIVE_HEALTHY`.
+- Edge Function `marketplace-api`: `ACTIVE`, JWT verification enabled.
+- Database currently has 0 products, 0 seller applications, 0 orders and 0 commission rules. This is an empty launch database, not evidence of successful real-user checkout.
+- RLS policy inspection confirms admin-only policies for the sensitive admin tables listed above.
+
+## Remaining launch checklist
+
+1. Provision the owner's trusted admin claim through Supabase Auth administration.
+2. Sign in with a real test account and verify seller application, approval, product upload and product activation.
+3. Add genuine supplier-approved catalogue entries, prices, MOQ, stock and product photos.
+4. Add delivery address capture, then run a complete buyer checkout and order-history test.
+5. Confirm supplier handoff workflow and decide whether to add a real email/WhatsApp integration.
+6. Set commission rates and payout rules only after confirming the business terms.
+7. Choose payment methods (for example UPI and COD) and integrate only after provider and settlement details are confirmed.
+8. Publish verified business contact details, privacy policy, terms, refund and seller policies.
+
+## Local preview
+
+This is a static frontend. Open `index.html` in a browser or serve the directory with a static web server.
+
+## Vercel deployment
+
+Framework preset: **Other**. Build command: leave empty. Output directory: `.`.
