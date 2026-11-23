@@ -36,6 +36,12 @@ Import this GitHub repository into Vercel. Framework preset: **Other**. Build co
 - Public catalogue fetches active, approved products from Supabase and displays their uploaded images, wholesale price, unit and MOQ.
 - Sample cards remain as a preview fallback until the first approved live listing exists; they are not real supplier offers and cannot be used for checkout.
 
+## Order operations
+
+- Admin dashboard lists orders with buyer delivery address, item summary, totals and current status.
+- Admin can update order status and save a supplier handoff record (supplier name/contact, handoff status, tracking reference and internal note).
+- Saving supplier details is an internal record only; the app does not automatically send WhatsApp, SMS, email or purchase orders to suppliers yet.
+
 ## Admin dashboard
 
 - The admin dashboard is visible only when the signed-in user's trusted Supabase `app_metadata.role` is `admin`.
