@@ -31,6 +31,13 @@ Import this GitHub repository into Vercel. Framework preset: **Other**. Build co
 - Admin permissions rely on trusted Supabase `app_metadata.role = admin`, never user-editable metadata.
 - These migrations are applied to the Supabase project `wholesale-marketplace` in `ap-south-1`. Project status was verified as `ACTIVE_HEALTHY`.
 
+## Admin dashboard
+
+- The admin dashboard is visible only when the signed-in user's trusted Supabase `app_metadata.role` is `admin`.
+- It lists seller applications and product submissions, with approve/reject and activate/deactivate actions. Database RLS remains the authorization boundary.
+- No public role-escalation or client-side admin assignment is provided. The first owner/admin must be granted the `role=admin` app_metadata claim through a trusted Supabase Auth administration process; never put a service-role key in browser code.
+- Admin actions have not yet been exercised with a real admin account.
+
 ## Seller product uploads
 
 - Storage bucket `product-images` is configured with a 5 MB limit and JPEG/PNG/WEBP allowlist.
