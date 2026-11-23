@@ -49,3 +49,14 @@
 .supplier-form{display:grid;gap:8px;padding:10px;background:#f8faf6;border-radius:9px}
 .supplier-form>b{font-size:11px}
 .supplier-form small{font-size:9px;color:#7d8997}
+
+
+/* Buyer checkout and order request */
+.checkout-modal{max-height:88vh;overflow:auto;width:min(560px,calc(100% - 24px))}
+.checkout-modal form{display:grid;gap:12px}
+.checkout-modal label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#344054}
+.checkout-modal input,.checkout-modal textarea{width:100%;border:1px solid #d8dde6;border-radius:9px;padding:11px;font:inherit;font-size:13px;background:#fff;color:#172033;min-width:0}
+.checkout-modal input:focus,.checkout-modal textarea:focus{outline:2px solid #dce9c9;border-color:#9cbd6d}
+.checkout-modal .product-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.checkout-modal [hidden]{display:none!important}
+@media(max-width:480px){.checkout-modal .product-fields{grid-template-columns:1fr}}
