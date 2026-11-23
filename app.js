@@ -54,3 +54,96 @@ window.marketplaceApi = {
     return this.request("orders", { method: "GET" });
   }
 };
+
+
+// Seller product upload and listing dashboard.
+const PRODUCT_IMAGE_BUCKET = "product-images";
+function setProductMessage(message, isError = false) {
+  const el = document.querySelector("#productMessage");
+  if (el) { el.textContent = message; el.style.color = isError ? "#b42318" : ""; }
+}
+async function loadSellerProducts() {
+  const panel = document.querySelector("#sellerProductsPanel");
+  if (!panel || !window.marketSupabase) return;
+  const supabase = window.marketSupabase;
+  const notice = document.querySelector("#sellerProductNotice");
+  const form = document.querySelector("#productForm");
+  const list = document.querySelector("#myProducts");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    notice.textContent = "Sign in first. Seller applications need admin approval before you can list products.";
+    form.hidden = true; list.textContent = "Sign in to view your listings."; return;
+  }
+  const { data: application, error: appError } = await supabase.from("seller_applications")
+    .select("status").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (appError) { notice.textContent = "Could not check seller approval. Please retry."; form.hidden = true; return; }
+  if (!application) {
+    notice.textContent = "Submit the seller application above. Your product listing access opens after admin approval.";
+    form.hidden = true; list.textContent = "No seller application found."; return;
+  }
+  if (application.status !== "approved") {
+    notice.textContent = "Seller application status: " + application.status + ". Product uploads unlock after approval.";
+    form.hidden = true; list.textContent = "Your application is awaiting approval."; return;
+  }
+  notice.textContent = "Seller approved. Add products below; new listings remain hidden until admin activation.";
+  form.hidden = false;
+  const { data: products, error } = await supabase.from("products")
+    .select("id,name,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_active,created_at")
+    .eq("seller_user_id", user.id).order("created_at", { ascending: false }).limit(100);
+  if (error) { list.textContent = "Unable to load products."; return; }
+  list.innerHTML = products?.length ? products.map(p => `
+    <article class="my-product">
+      ${p.image_url ? `<img src="${p.image_url}" alt="">` : ""}
+      <div><b>${escapeProductText(p.name)}</b><small>${escapeProductText(p.category)} · ₹${(p.price_paise / 100).toFixed(2)} / ${escapeProductText(p.unit)}</small>
+      <small>MOQ ${p.minimum_quantity} · Stock ${p.stock_quantity} · ${p.is_active ? "Live" : "Pending admin approval"}</small></div>
+    </article>`).join("") : "No products listed yet.";
+}
+function escapeProductText(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+}
+document.querySelector("#productForm")?.addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = document.querySelector("#productSubmit");
+  const file = form.elements.image.files[0];
+  if (!window.marketSupabase || !file) { setProductMessage("Sign in and choose a product photo.", true); return; }
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+    setProductMessage("Use JPG, PNG or WEBP image up to 5 MB.", true); return;
+  }
+  submit.disabled = true; setProductMessage("Uploading product photo…");
+  try {
+    const supabase = window.marketSupabase;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Please sign in first.");
+    const { data: application, error: appError } = await supabase.from("seller_applications")
+      .select("status").eq("user_id", user.id).eq("status", "approved").limit(1).maybeSingle();
+    if (appError) throw appError;
+    if (!application) throw new Error("Your seller account is not approved yet.");
+    const ext = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
+    const path = user.id + "/" + crypto.randomUUID() + "." + ext;
+    const { error: uploadError } = await supabase.storage.from(PRODUCT_IMAGE_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+    if (uploadError) throw uploadError;
+    const { data: publicData } = supabase.storage.from(PRODUCT_IMAGE_BUCKET).getPublicUrl(path);
+    const data = new FormData(form);
+    const pricePaise = Math.round(Number(data.get("price")) * 100);
+    if (!Number.isSafeInteger(pricePaise) || pricePaise < 1) throw new Error("Enter a valid wholesale price.");
+    const product = {
+      seller_user_id: user.id, name: String(data.get("name")).trim(),
+      description: String(data.get("description") || "").trim(), category: data.get("category"),
+      price_paise: pricePaise, unit: String(data.get("unit")).trim(),
+      minimum_quantity: Number(data.get("minimum_quantity")), stock_quantity: Number(data.get("stock_quantity")),
+      image_url: publicData.publicUrl, is_active: false
+    };
+    const { error: insertError } = await supabase.from("products").insert(product);
+    if (insertError) {
+      await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove([path]);
+      throw insertError;
+    }
+    form.reset(); setProductMessage("Product submitted. It will appear in the public catalogue after admin approval.");
+    await loadSellerProducts();
+  } catch (error) {
+    setProductMessage(error.message || "Product upload failed. Please try again.", true);
+  } finally { submit.disabled = false; }
+});
+const originalOpenSeller = openSeller;
+openSeller = function() { originalOpenSeller(); loadSellerProducts(); };
