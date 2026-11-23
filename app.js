@@ -3,9 +3,9 @@ const products=[{id:1,name:"Everyday grocery combo",category:"Grocery & daily ne
 const state={category:"All",cart:{}};const $=s=>document.querySelector(s);const money=n=>"₹"+n.toLocaleString("en-IN");
 function renderCategories(){$("#categoryGrid").innerHTML=categories.map(c=>`<button class="category-card ${state.category===c.name?"selected":""}" data-category="${c.name}"><span class="cat-icon">${c.icon}</span><b>${c.name}</b><small>${c.count}</small></button>`).join("");}
 function renderFilters(){const names=["All",...new Set(products.map(p=>p.category))];$("#filterRow").innerHTML=names.map(n=>`<button class="filter ${state.category===n?"active":""}" data-filter="${n}">${n==="All"?"All products":n}</button>`).join("");}
-function renderProducts(){let list=products.filter(p=>(state.category==="All"||p.category===state.category)&&((p.name+" "+p.category).toLowerCase().includes($("#search").value.toLowerCase())));const sort=$("#sortSelect").value;if(sort==="low")list.sort((a,b)=>a.price-b.price);if(sort==="high")list.sort((a,b)=>b.price-a.price);$("#productGrid").innerHTML=list.length?list.map(p=>`<article class="product-card"><div class="product-visual" style="background:${p.bg}"><small>${p.tag}</small><span>${p.icon}</span></div><div class="product-info"><span class="category">${p.category}</span><h3>${p.name}</h3><div class="price-row"><strong>${money(p.price)}</strong><small>${p.unit}</small></div><div class="moq">${p.moq}</div><button class="add-button" data-add="${p.id}">＋ Add to cart</button></div></article>`).join(""):`<p class="empty-cart">No matching products. Try another search or category.</p>`;}
+function renderProducts(){let list=products.filter(p=>(state.category==="All"||p.category===state.category)&&((p.name+" "+p.category).toLowerCase().includes($("#search").value.toLowerCase())));const sort=$("#sortSelect").value;if(sort==="low")list.sort((a,b)=>a.price-b.price);if(sort==="high")list.sort((a,b)=>b.price-a.price);$("#productGrid").innerHTML=list.length?list.map(p=>`<article class="product-card"><div class="product-visual" style="background:${p.bg}"><small>${escapeProductText(p.tag)}</small>${p.imageUrl?`<img class="product-photo" src="${escapeProductText(p.imageUrl)}" alt="${escapeProductText(p.name)}" loading="lazy">`:`<span>${p.icon}</span>`}</div><div class="product-info"><span class="category">${escapeProductText(p.category)}</span><h3>${escapeProductText(p.name)}</h3><div class="price-row"><strong>${money(p.price)}</strong><small>${p.unit}</small></div><div class="moq">${p.moq}</div><button class="add-button" data-add="${p.id}">＋ Add to cart</button></div></article>`).join(""):`<p class="empty-cart">No matching products. Try another search or category.</p>`;}
 function cartCount(){return Object.values(state.cart).reduce((a,b)=>a+b,0)}
-function renderCart(){$("#cartCount").textContent=cartCount();const entries=Object.entries(state.cart);$("#cartItems").innerHTML=entries.length?entries.map(([id,q])=>{const p=products.find(x=>x.id===+id);return `<div class="cart-item"><div><b>${p.name}</b><small>${money(p.price)} · ${p.moq}</small></div><div class="qty-controls"><button data-qty="${id}" data-delta="-1">−</button><b>${q}</b><button data-qty="${id}" data-delta="1">+</button></div></div>`}).join(""):`<div class="empty-cart">Your cart is waiting.<br><small>Add products to get started.</small></div>`;const total=entries.reduce((sum,[id,q])=>sum+products.find(p=>p.id===+id).price*q,0);$("#cartTotal").textContent=money(total);}
+function renderCart(){$("#cartCount").textContent=cartCount();const entries=Object.entries(state.cart);$("#cartItems").innerHTML=entries.length?entries.map(([id,q])=>{const p=products.find(x=>String(x.id)===String(id));return `<div class="cart-item"><div><b>${p.name}</b><small>${money(p.price)} · ${p.moq}</small></div><div class="qty-controls"><button data-qty="${id}" data-delta="-1">−</button><b>${q}</b><button data-qty="${id}" data-delta="1">+</button></div></div>`}).join(""):`<div class="empty-cart">Your cart is waiting.<br><small>Add products to get started.</small></div>`;const total=entries.reduce((sum,[id,q])=>sum+products.find(p=>String(p.id)===String(id)).price*q,0);$("#cartTotal").textContent=money(total);}
 function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
 function setCategory(c){state.category=c;renderCategories();renderFilters();renderProducts();$("#catalogue").scrollIntoView({behavior:"smooth"});}
 function openCart(){renderCart();$("#overlay").classList.add("show");$("#cartDrawer").classList.add("show")}
@@ -180,3 +180,24 @@ $("#adminProducts")?.addEventListener("click",async e=>{
  const {error}=await window.marketSupabase.from("products").update({is_active:b.dataset.productActive==="true"}).eq("id",b.dataset.id);
  if(error)adminNotice("Product update failed: "+error.message,true);else{adminNotice("Product visibility updated.");await loadAdminDashboard();}b.disabled=false;
 });
+
+
+// Load approved, active products from the live database. Demo cards remain visible
+// only as clearly marked fallback content until the first approved seller listing exists.
+async function loadPublicProducts(){
+ if(!window.marketSupabase)return;
+ const {data,error}=await window.marketSupabase.from("products")
+  .select("id,name,description,category,price_paise,unit,minimum_quantity,stock_quantity,image_url")
+  .eq("is_active",true).order("created_at",{ascending:false}).limit(200);
+ if(error){console.warn("Live catalogue unavailable; showing demo catalogue.",error.message);return;}
+ if(!data?.length){const head=document.querySelector("#catalogue .section-head p");if(head)head.textContent="Sample catalogue preview — approved seller products will appear here.";return;}
+ products=data.map(p=>({
+  id:p.id,name:p.name,description:p.description,category:p.category,
+  price:p.price_paise/100,unit:"per "+p.unit,moq:"MOQ: "+p.minimum_quantity+" "+p.unit,
+  tag:"Verified listing",bg:"#eef2e8",icon:"📦",imageUrl:p.image_url
+ }));
+ state.cart={};renderFilters();renderProducts();renderCart();
+ const head=document.querySelector("#catalogue .section-head p");if(head)head.textContent="Live products listed by approved marketplace sellers.";
+}
+
+loadPublicProducts();
