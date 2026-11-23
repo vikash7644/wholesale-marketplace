@@ -18,3 +18,21 @@
 .my-product small{color:#687386;overflow-wrap:anywhere}
 .seller-products [hidden]{display:none!important}
 @media(max-width:480px){.product-fields{grid-template-columns:1fr}}
+
+
+/* Marketplace admin dashboard */
+.admin-modal{max-height:88vh;overflow:auto;width:min(680px,calc(100% - 24px))}
+.admin-modal section{margin-top:22px}
+.admin-modal section h3{font:800 16px Manrope;margin:0 0 10px}
+.admin-message{font-size:12px;padding:10px;border-radius:8px;background:#f5f7f2;color:#526e37}
+.admin-list{display:grid;gap:9px}
+.admin-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #e7e9ee;border-radius:10px;padding:10px}
+.admin-row>div:first-child{display:grid;gap:4px;min-width:0}
+.admin-row b{font-size:12px}
+.admin-row small{font-size:10px;color:#738092;overflow-wrap:anywhere}
+.admin-actions{display:flex;gap:6px;flex-wrap:wrap}
+.admin-actions button{border:1px solid #dce4d5;border-radius:7px;background:#f7faef;color:#45632e;padding:8px 10px;font-size:10px;font-weight:800;cursor:pointer}
+.admin-actions button:disabled{opacity:.5}
+.admin-product-main{display:flex!important;align-items:center;gap:10px}
+.admin-product-main img{width:48px;height:48px;object-fit:cover;border-radius:7px}
+@media(max-width:480px){.admin-row{align-items:flex-start;flex-direction:column}.admin-actions{width:100%}.admin-actions button{flex:1}}
