@@ -9,6 +9,9 @@ A mobile-first B2B wholesale and multi-vendor marketplace frontend.
 - Supabase email/password signup and login
 - Seller application submission for authenticated users
 - Seller applications remain pending admin review
+- Supabase Edge Function `marketplace-api` is deployed with JWT verification enabled
+- Authenticated API routes: `POST /orders` (trusted database checkout RPC) and `GET /orders` (buyer-scoped order history)
+- Frontend API client is exposed as `window.marketplaceApi.placeOrder(...)` and `window.marketplaceApi.getMyOrders()`
 - Checkout UI is present but intentionally disabled until real catalogue products and delivery details are connected
 
 ## Run locally
@@ -24,6 +27,14 @@ Import this GitHub repository into Vercel. Framework preset: **Other**. Build co
 - All marketplace tables have Row Level Security enabled. Public catalogue access is limited to active products from approved sellers.
 - Admin permissions rely on trusted Supabase `app_metadata.role = admin`, never user-editable metadata.
 - These migrations are applied to the Supabase project `wholesale-marketplace` in `ap-south-1`. Project status was verified as `ACTIVE_HEALTHY`.
+
+## Application API backend
+
+- Deployed function: `marketplace-api` (active; JWT verification enabled).
+- The function validates the signed-in user, validates cart payloads, delegates price/MOQ/stock checks to the database checkout RPC, and returns an order ID.
+- Order history is filtered by the authenticated buyer ID. No service-role key is exposed to the browser.
+- Frontend helper is available in `app.js` as `window.marketplaceApi`.
+- The current visible catalogue is still sample/demo data with numeric placeholder IDs. Do not submit real orders until it is replaced with database-backed UUID product records and a delivery-address form. API deployment is confirmed; end-to-end browser checkout has not yet been tested.
 
 ## Commission management
 
