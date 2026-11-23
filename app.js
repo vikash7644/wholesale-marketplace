@@ -159,9 +159,10 @@ async function loadAdminDashboard(){
  const {data:{user}}=await supabase.auth.getUser();
  if(!user||user.app_metadata?.role!=="admin"){adminNotice("Administrator access required. Ask the project owner to grant the admin role securely in Supabase Auth app_metadata.",true);$("#adminApplications").textContent="Not authorized." ;$("#adminProducts").textContent="Not authorized.";return;}
  adminNotice("Administrator access verified.");
- const [apps,products]=await Promise.all([
+ const [apps,products,orders]=await Promise.all([
   supabase.from("seller_applications").select("id,user_id,business_name,contact_name,phone,category,status,created_at").order("created_at",{ascending:false}).limit(100),
-  supabase.from("products").select("id,seller_user_id,name,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_active,created_at").order("created_at",{ascending:false}).limit(100)
+  supabase.from("products").select("id,seller_user_id,name,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_active,created_at").order("created_at",{ascending:false}).limit(100),
+  supabase.from("orders").select("id,buyer_user_id,status,subtotal_paise,delivery_address,buyer_note,created_at,order_items(id,product_name,quantity,unit_price_paise,line_total_paise),supplier_fulfilments(id,supplier_name,supplier_contact,status,tracking_reference,internal_note)").order("created_at",{ascending:false}).limit(100)
  ]);
  if(apps.error){$("#adminApplications").textContent="Could not load seller applications: "+apps.error.message;}else{
   $("#adminApplications").innerHTML=apps.data.length?apps.data.map(x=>`<article class="admin-row"><div><b>${escapeProductText(x.business_name)}</b><small>${escapeProductText(x.contact_name)} · ${escapeProductText(x.phone)}</small><small>${escapeProductText(x.category)} · ${escapeProductText(x.status)}</small></div><div class="admin-actions">${x.status!=="approved"?`<button data-app-action="approved" data-id="${x.id}">Approve</button>`:""}${x.status!=="rejected"?`<button data-app-action="rejected" data-id="${x.id}">Reject</button>`:""}</div></article>`).join(""):"No seller applications yet.";
@@ -169,7 +170,32 @@ async function loadAdminDashboard(){
  if(products.error){$("#adminProducts").textContent="Could not load products: "+products.error.message;}else{
   $("#adminProducts").innerHTML=products.data.length?products.data.map(x=>`<article class="admin-row"><div class="admin-product-main">${x.image_url?`<img src="${x.image_url}" alt="">`:""}<div><b>${escapeProductText(x.name)}</b><small>${escapeProductText(x.category)} · ₹${(x.price_paise/100).toFixed(2)} / ${escapeProductText(x.unit)}</small><small>MOQ ${x.minimum_quantity} · Stock ${x.stock_quantity} · ${x.is_active?"Live":"Pending"}</small></div></div><div class="admin-actions"><button data-product-active="${!x.is_active}" data-id="${x.id}">${x.is_active?"Deactivate":"Activate"}</button></div></article>`).join(""):"No products submitted yet.";
  }
+ if(orders.error){$("#adminOrders").textContent="Could not load orders: "+orders.error.message;}else{
+  const orderStates=["placed","confirmed","forwarded","dispatched","delivered","cancelled"];
+  $("#adminOrders").innerHTML=orders.data.length?orders.data.map(o=>{
+   const fulfil=o.supplier_fulfilments?.[0]||{};
+   const items=(o.order_items||[]).map(i=>escapeProductText(i.product_name)+" × "+i.quantity).join(", ");
+   const address=typeof o.delivery_address==="object"?JSON.stringify(o.delivery_address):String(o.delivery_address||"");
+   return `<article class="admin-order"><div class="admin-order-head"><div><b>Order #${o.id.slice(0,8)}</b><small>${new Date(o.created_at).toLocaleString("en-IN")} · ${escapeProductText(o.status)}</small><small>${money(o.subtotal_paise/100)} · ${escapeProductText(items)}</small><small>Delivery: ${escapeProductText(address)}</small>${o.buyer_note?`<small>Note: ${escapeProductText(o.buyer_note)}</small>`:""}</div></div>
+    <div class="admin-order-controls"><label>Order status<select data-order-status>${orderStates.map(st=>`<option value="${st}" ${o.status===st?"selected":""}>${st}</option>`).join("")}</select><button data-save-order="${o.id}">Update status</button></label></div>
+    <form class="supplier-form" data-supplier-order="${o.id}"><b>Supplier handoff</b><input name="supplier_name" required placeholder="Supplier / party name" value="${escapeProductText(fulfil.supplier_name||"")}"><input name="supplier_contact" placeholder="Supplier phone / contact" value="${escapeProductText(fulfil.supplier_contact||"")}"><div class="admin-order-controls"><select name="status">${["not_forwarded","forwarded","accepted","dispatched","delivered"].map(st=>`<option value="${st}" ${(fulfil.status||"not_forwarded")===st?"selected":""}>${st.replaceAll("_"," ")}</option>`).join("")}</select><input name="tracking_reference" placeholder="Tracking / LR number" value="${escapeProductText(fulfil.tracking_reference||"")}"></div><textarea name="internal_note" rows="2" placeholder="Internal note">${escapeProductText(fulfil.internal_note||"")}</textarea><button type="submit">Save supplier handoff</button><small>Record supplier handoff manually; no message is sent automatically.</small></form></article>`;
+  }).join(""):"No orders received yet.";
+ }
 }
+$("#adminOrders")?.addEventListener("click",async e=>{
+ const b=e.target.closest("[data-save-order]");if(!b)return;
+ const row=b.closest(".admin-order");const status=row.querySelector("[data-order-status]").value;b.disabled=true;
+ const {error}=await window.marketSupabase.from("orders").update({status}).eq("id",b.dataset.saveOrder);
+ if(error)adminNotice("Order status update failed: "+error.message,true);else{adminNotice("Order status updated.");await loadAdminDashboard();}b.disabled=false;
+});
+$("#adminOrders")?.addEventListener("submit",async e=>{
+ const form=e.target.closest("[data-supplier-order]");if(!form)return;e.preventDefault();
+ const f=new FormData(form);const orderId=form.dataset.supplierOrder;
+ const payload={order_id:orderId,supplier_name:String(f.get("supplier_name")).trim(),supplier_contact:String(f.get("supplier_contact")||"").trim()||null,status:f.get("status"),tracking_reference:String(f.get("tracking_reference")||"").trim()||null,internal_note:String(f.get("internal_note")||"").trim(),updated_at:new Date().toISOString()};
+ const b=form.querySelector('button[type="submit"]');b.disabled=true;
+ const {error}=await window.marketSupabase.from("supplier_fulfilments").upsert(payload,{onConflict:"order_id"});
+ if(error)adminNotice("Supplier handoff save failed: "+error.message,true);else{adminNotice("Supplier handoff saved. Contact supplier separately to actually forward the order.");await loadAdminDashboard();}b.disabled=false;
+});
 $("#adminApplications")?.addEventListener("click",async e=>{
  const b=e.target.closest("[data-app-action]");if(!b)return;b.disabled=true;
  const {error}=await window.marketSupabase.from("seller_applications").update({status:b.dataset.appAction,reviewed_at:new Date().toISOString()}).eq("id",b.dataset.id);
