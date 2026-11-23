@@ -9,6 +9,9 @@ A mobile-first B2B wholesale and multi-vendor marketplace frontend.
 - Supabase email/password signup and login
 - Seller application submission for authenticated users
 - Seller applications remain pending admin review
+- Approved sellers can upload JPG/PNG/WEBP product photos (up to 5 MB) and submit product name, description, category, wholesale price, unit, MOQ and stock
+- Seller product listings remain inactive until admin activation
+- Supabase Storage bucket `product-images` stores public catalogue images; authenticated uploads are restricted to each seller's own folder
 - Supabase Edge Function `marketplace-api` is deployed with JWT verification enabled
 - Authenticated API routes: `POST /orders` (trusted database checkout RPC) and `GET /orders` (buyer-scoped order history)
 - Frontend API client is exposed as `window.marketplaceApi.placeOrder(...)` and `window.marketplaceApi.getMyOrders()`
@@ -27,6 +30,14 @@ Import this GitHub repository into Vercel. Framework preset: **Other**. Build co
 - All marketplace tables have Row Level Security enabled. Public catalogue access is limited to active products from approved sellers.
 - Admin permissions rely on trusted Supabase `app_metadata.role = admin`, never user-editable metadata.
 - These migrations are applied to the Supabase project `wholesale-marketplace` in `ap-south-1`. Project status was verified as `ACTIVE_HEALTHY`.
+
+## Seller product uploads
+
+- Storage bucket `product-images` is configured with a 5 MB limit and JPEG/PNG/WEBP allowlist.
+- Storage RLS restricts uploads to a folder named for the authenticated user ID; sellers can manage only their own uploaded images.
+- Product insert policy requires an approved seller and stores new listings as inactive for admin review.
+- Migration `202611230006_product_image_storage.sql` creates the bucket and policies; migration `202611230007_seller_product_dashboard_read_policy.sql` allows sellers to view their own pending listings.
+- The seller modal includes the upload form and seller's product list. The form is hidden until seller approval.
 
 ## Application API backend
 
