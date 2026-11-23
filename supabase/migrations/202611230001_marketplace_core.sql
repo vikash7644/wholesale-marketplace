@@ -123,6 +123,7 @@ with check (
     select 1 from public.seller_applications sa
     where sa.user_id = (select auth.uid()) and sa.status = 'approved'
   )
+  and is_active = false
 );
 
 create policy "Users can submit seller applications"
@@ -146,22 +147,13 @@ on public.profiles for update to authenticated
 using (id = (select auth.uid()))
 with check (id = (select auth.uid()));
 
-create policy "Buyers can create their own orders"
-on public.orders for insert to authenticated
-with check (buyer_user_id = (select auth.uid()) and status = 'placed');
+-- Direct client-side order creation is intentionally disabled.
+-- A trusted server-side order endpoint must validate live prices, MOQ, stock,
+-- seller approval, totals and commission before inserting orders/order_items.
 
 create policy "Buyers can view their own orders"
 on public.orders for select to authenticated
 using (buyer_user_id = (select auth.uid()));
-
-create policy "Buyers can add items to their own orders"
-on public.order_items for insert to authenticated
-with check (
-  exists (
-    select 1 from public.orders o
-    where o.id = order_id and o.buyer_user_id = (select auth.uid())
-  )
-);
 
 create policy "Buyers and sellers can view relevant order items"
 on public.order_items for select to authenticated
@@ -206,8 +198,8 @@ grant select on public.products to anon, authenticated;
 grant insert, update on public.products to authenticated;
 grant select, insert, update on public.profiles to authenticated;
 grant select, insert, update, delete on public.seller_applications to authenticated;
-grant select, insert, update on public.orders to authenticated;
-grant select, insert, update, delete on public.order_items to authenticated;
+grant select on public.orders to authenticated;
+grant select on public.order_items to authenticated;
 grant select, insert, update, delete on public.supplier_fulfilments to authenticated;
 grant select, insert, update, delete on public.commissions to authenticated;
 
