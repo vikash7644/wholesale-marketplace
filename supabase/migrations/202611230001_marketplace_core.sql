@@ -205,9 +205,9 @@ with check ((select auth.jwt()->'app_metadata'->>'role') = 'admin');
 grant select on public.products to anon, authenticated;
 grant insert, update on public.products to authenticated;
 grant select, insert, update on public.profiles to authenticated;
-grant select, insert on public.seller_applications to authenticated;
-grant select, insert on public.orders to authenticated;
-grant select, insert on public.order_items to authenticated;
+grant select, insert, update, delete on public.seller_applications to authenticated;
+grant select, insert, update on public.orders to authenticated;
+grant select, insert, update, delete on public.order_items to authenticated;
 grant select, insert, update, delete on public.supplier_fulfilments to authenticated;
 grant select, insert, update, delete on public.commissions to authenticated;
 
