@@ -25,6 +25,12 @@ Import this GitHub repository into Vercel. Framework preset: **Other**. Build co
 - Admin permissions rely on trusted Supabase `app_metadata.role = admin`, never user-editable metadata.
 - These migrations are applied to the Supabase project `wholesale-marketplace` in `ap-south-1`. Project status was verified as `ACTIVE_HEALTHY`.
 
+## Commission management
+
+- Project-scoped commission management is installed: independent project registry, configurable commission rules (project/category/seller scope), immutable-style commission ledger entries, and payout records.
+- The Wholesale Marketplace is registered as the first project in this commission system. Other businesses/projects must be onboarded explicitly; this does not automatically connect or mix their revenue.
+- Commission rules default to inactive and 0 basis points until an owner configures and approves actual rates. Ledger/payout rows are admin-only; no live commission collection or payouts are enabled yet.
+
 ## Important next steps before accepting real orders
 1. End-to-end test signup/login and seller application with a real test account.
 2. Build an authenticated admin review interface and a safe way to assign the first admin role.
