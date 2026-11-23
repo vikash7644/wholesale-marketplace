@@ -16,7 +16,7 @@ $("#categoryGrid").addEventListener("click",e=>{const b=e.target.closest("[data-
 $("#filterRow").addEventListener("click",e=>{const b=e.target.closest("[data-filter]");if(b){state.category=b.dataset.filter;renderCategories();renderFilters();renderProducts()}});
 $("#productGrid").addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(b){const id=b.dataset.add;state.cart[id]=(state.cart[id]||0)+1;renderCart();toast("Added to your cart") }});
 $("#cartItems").addEventListener("click",e=>{const b=e.target.closest("[data-qty]");if(!b)return;const id=b.dataset.qty;state.cart[id]+=+b.dataset.delta;if(state.cart[id]<=0)delete state.cart[id];renderCart()});
-$("#search").addEventListener("input",renderProducts);$("#sortSelect").addEventListener("change",renderProducts);$("#cartOpen").addEventListener("click",openCart);$("#cartClose").addEventListener("click",closeCart);$("#overlay").addEventListener("click",()=>{closeCart();closeSeller()});
+$("#search").addEventListener("input",renderProducts);$("#sortSelect").addEventListener("change",renderProducts);$("#cartOpen").addEventListener("click",openCart);$("#cartClose").addEventListener("click",closeCart);$("#overlay").addEventListener("click",()=>{closeCart();closeSeller();if(typeof hideAuth==="function")hideAuth()});
 ["sellerNav","heroSeller","sellerCta"].forEach(id=>$("#"+id).addEventListener("click",openSeller));$("#modalClose").addEventListener("click",closeSeller);
 $("#mobileMenu").addEventListener("click",()=>$(".topbar").classList.toggle("menu-open"));
 $("#checkoutBtn").addEventListener("click",()=>toast("Order enquiry will be enabled after backend setup."));
