@@ -1,0 +1,12 @@
+-- Add indexes for frequently joined/referenced foreign-key columns.
+create index if not exists commissions_order_id_idx on public.commissions(order_id);
+create index if not exists commissions_seller_user_id_idx on public.commissions(seller_user_id);
+create index if not exists order_items_product_id_idx on public.order_items(product_id);
+create index if not exists order_items_seller_user_id_idx on public.order_items(seller_user_id);
+create index if not exists project_commission_ledger_order_id_idx on public.project_commission_ledger(order_id);
+create index if not exists project_commission_ledger_rule_id_idx on public.project_commission_ledger(rule_id);
+create index if not exists project_commission_ledger_seller_user_id_idx on public.project_commission_ledger(seller_user_id);
+create index if not exists project_commission_ledger_source_entry_id_idx on public.project_commission_ledger(source_entry_id);
+create index if not exists project_commission_payouts_seller_user_id_idx on public.project_commission_payouts(seller_user_id);
+create index if not exists project_commission_rules_seller_user_id_idx on public.project_commission_rules(seller_user_id);
+create index if not exists seller_applications_user_id_idx on public.seller_applications(user_id);
