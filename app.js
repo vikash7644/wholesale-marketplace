@@ -60,7 +60,7 @@ $("#sellerForm").addEventListener("submit",async e=>{
  if(!error){e.currentTarget.reset();if(typeof loadSellerProducts==="function")loadSellerProducts();}
 });
 renderCategories();renderFilters();renderProducts();renderCart();
-const SUPABASE_URL="https://vhnelmarhqvsncgczazk.supabase.co";const SUPABASE_PUBLISHABLE_KEY="sb_publishable_2uLOLMsuzy2vI9FPe2GbrQ_M94h136I";window.marketSupabase=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY)||null;let authMode="signin";function showAuth(){$("#authModal").classList.add("show");$("#overlay").classList.add("show");}function hideAuth(){$("#authModal").classList.remove("show");$("#overlay").classList.remove("show");}function setAuthMessage(m){$("#authMessage").textContent=m;}function updateAuthButton(user){$("#authOpen").textContent=user?(user.email?.split("@")[0]||"My account")+" · Sign out":"Sign in / Join";const admin=!!(user?.app_metadata?.role==="admin");$("#adminNav").hidden=!admin;$("#ordersNav").hidden=!user;}$("#authOpen").addEventListener("click",async()=>{if(!window.marketSupabase){toast("Account service unavailable");return;}const {data:{user}}=await window.marketSupabase.auth.getUser();if(user){await window.marketSupabase.auth.signOut();updateAuthButton(null);toast("Signed out");}else showAuth();});$("#authClose").addEventListener("click",hideAuth);$("#authToggle").addEventListener("click",()=>{authMode=authMode==="signin"?"signup":"signin";$("#authTitle").textContent=authMode==="signin"?"Welcome back":"Create your account";$("#authHelp").textContent=authMode==="signin"?"Sign in to continue.":"Join as a retailer and discover wholesale products.";$("#authSubmit").textContent=authMode==="signin"?"Sign in":"Create account";$("#authToggle").textContent=authMode==="signin"?"Create account":"I already have an account";$("#fullNameLabel").hidden=authMode!=="signup";setAuthMessage("");});$("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!window.marketSupabase){setAuthMessage("Account service unavailable. Refresh and try again.");return;}const f=new FormData(e.currentTarget);$("#authSubmit").disabled=true;let result;if(authMode==="signup"){result=await window.marketSupabase.auth.signUp({email:f.get("email"),password:f.get("password"),options:{data:{full_name:f.get("full_name")},emailRedirectTo:window.location.origin+"/"}});if(!result.error&&result.data.user)await window.marketSupabase.from("profiles").upsert({id:result.data.user.id,full_name:f.get("full_name")||""});}else result=await window.marketSupabase.auth.signInWithPassword({email:f.get("email"),password:f.get("password")});$("#authSubmit").disabled=false;if(result.error){setAuthMessage(result.error.message);return;}if(authMode==="signup"&&!result.data.session){setAuthMessage("Account created. Check your email to confirm, then sign in.");return;}updateAuthButton(result.data.user);setAuthMessage("Signed in successfully.");setTimeout(hideAuth,700);});if(window.marketSupabase){window.marketSupabase.auth.getUser().then(({data})=>updateAuthButton(data.user));window.marketSupabase.auth.onAuthStateChange((_event,session)=>updateAuthButton(session?.user||null));}
+const SUPABASE_URL="https://vhnelmarhqvsncgczazk.supabase.co";const SUPABASE_PUBLISHABLE_KEY="sb_publishable_2uLOLMsuzy2vI9FPe2GbrQ_M94h136I";window.marketSupabase=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY)||null;let authMode="signin";function showAuth(){$("#authModal").classList.add("show");$("#overlay").classList.add("show");}function hideAuth(){$("#authModal").classList.remove("show");$("#overlay").classList.remove("show");}function setAuthMessage(m){$("#authMessage").textContent=m;}function updateAuthButton(user){$("#authOpen").textContent=user?(user.email?.split("@")[0]||"My account")+" · Sign out":"Sign in / Join";const admin=!!(user?.app_metadata?.role==="admin");$("#adminNav").hidden=!admin;$("#ordersNav").hidden=!user;}$("#authOpen").addEventListener("click",async()=>{if(!window.marketSupabase){toast("Account service unavailable");return;}const {data:{user}}=await window.marketSupabase.auth.getUser();if(user){await window.marketSupabase.auth.signOut();updateAuthButton(null);toast("Signed out");}else showAuth();});$("#authClose").addEventListener("click",hideAuth);$("#authToggle").addEventListener("click",()=>{authMode=authMode==="signin"?"signup":"signin";$("#authTitle").textContent=authMode==="signin"?"Welcome back":"Create your account";$("#authHelp").textContent=authMode==="signin"?"Sign in to continue.":"Join as a retailer and discover wholesale products.";$("#authSubmit").textContent=authMode==="signin"?"Sign in":"Create account";$("#authToggle").textContent=authMode==="signin"?"Create account":"I already have an account";$("#fullNameLabel").hidden=authMode!=="signup";setAuthMessage("");});$("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!window.marketSupabase){setAuthMessage("Account service unavailable. Refresh and try again.");return;}const f=new FormData(e.currentTarget);$("#authSubmit").disabled=true;let result;if(authMode==="signup"){result=await window.marketSupabase.auth.signUp({email:f.get("email"),password:f.get("password"),options:{data:{full_name:f.get("full_name")},emailRedirectTo:window.location.origin+"/"}});if(!result.error&&result.data.user)await window.marketSupabase.from("profiles").upsert({id:result.data.user.id,full_name:f.get("full_name")||""});}else result=await window.marketSupabase.auth.signInWithPassword({email:f.get("email"),password:f.get("password")});$("#authSubmit").disabled=false;if(result.error){setAuthMessage(result.error.message);return;}if(authMode==="signup"&&!result.data.session){setAuthMessage("Account created. Check your email to confirm, then sign in.");return;}updateAuthButton(result.data.user);setAuthMessage("Signed in successfully.");setTimeout(hideAuth,700);});if(window.marketSupabase){window.marketSupabase.auth.getUser().then(({data})=>updateAuthButton(data.user));window.marketSupabase.auth.onAuthStateChange((_event,session)=>{updateAuthButton(session?.user||null);if(typeof loadSellerProducts==="function")loadSellerProducts();});}
 
 // Authenticated backend API client. The demo catalogue is deliberately not orderable
 // until real UUID-backed supplier products and a delivery-address form are connected.
@@ -134,15 +134,20 @@ async function loadSellerProducts() {
     .select("status").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (appError) { notice.textContent = "Could not check seller approval. Please retry."; form.hidden = true; return; }
   if (!application) {
-    notice.textContent = "Submit the seller application above. Your product listing access opens after admin approval.";
-    form.hidden = true; list.textContent = "No seller application found."; return;
+    notice.textContent = "No seller application found. Fill and submit the Become a seller form above; uploads unlock after admin approval.";
+    form.hidden = true; list.textContent = "Seller application not found yet. Submit the seller form above, then sign in after email confirmation.";
+    const projectForm=document.querySelector("#sellerProjectForm"); if(projectForm)projectForm.hidden=true;
+    const projectList=document.querySelector("#mySellerProjects"); if(projectList)projectList.textContent="Seller approval is required before project uploads.";
+    return;
   }
   if (application.status !== "approved") {
     notice.textContent = "Seller application status: " + application.status + ". Product uploads unlock after approval.";
     form.hidden = true; list.textContent = "Your application is awaiting approval."; return;
   }
-  notice.textContent = "Seller approved. Add products below; new listings remain hidden until admin activation.";
+  notice.textContent = "Seller approved. You can upload products and digital projects; each submission is reviewed before publishing.";
   form.hidden = false;
+  const projectForm=document.querySelector("#sellerProjectForm"); if(projectForm)projectForm.hidden=false;
+  await loadSellerProjectList(user.id);
   const { data: products, error } = await supabase.from("products")
     .select("id,name,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_active,created_at")
     .eq("seller_user_id", user.id).order("created_at", { ascending: false }).limit(100);
@@ -154,6 +159,36 @@ async function loadSellerProducts() {
       <small>MOQ ${p.minimum_quantity} · Stock ${p.stock_quantity} · ${p.is_active ? "Live" : "Pending admin approval"}</small></div>
     </article>`).join("") : "No products listed yet.";
 }
+async function loadSellerProjectList(userId){
+ const list=document.querySelector("#mySellerProjects");if(!list)return;
+ const result=await window.marketSupabase.from("seller_projects").select("id,title,category,price_paise,status,created_at,demo_url,file_path").eq("seller_user_id",userId).order("created_at",{ascending:false}).limit(50);
+ if(result.error){list.textContent="Could not load project submissions: "+result.error.message;return;}
+ list.innerHTML=result.data&&result.data.length?result.data.map(p=>'<article class="my-product"><div><b>'+escapeProductText(p.title)+'</b><small>'+escapeProductText(p.category)+' · '+(p.price_paise?money(p.price_paise/100):"Enquiry price")+'</small><small>Status: '+escapeProductText(p.status)+' · '+(p.file_path?"File attached":"No file")+(p.demo_url?" · Demo link added":"")+'</small></div></article>').join(""):"No project submissions yet.";
+}
+document.querySelector("#sellerProjectForm")?.addEventListener("submit",async event=>{
+ event.preventDefault();const form=event.currentTarget,button=document.querySelector("#sellerProjectSubmit"),message=document.querySelector("#sellerProjectMessage");
+ button.disabled=true;message.textContent="Uploading project…";let uploadedPath=null;
+ try{
+  const userResult=await window.marketSupabase.auth.getUser();const user=userResult.data.user;if(userResult.error)throw userResult.error;if(!user)throw new Error("Please sign in first.");
+  const approvedResult=await window.marketSupabase.from("seller_applications").select("id").eq("user_id",user.id).eq("status","approved").limit(1).maybeSingle();
+  if(approvedResult.error)throw approvedResult.error;if(!approvedResult.data)throw new Error("Your seller application must be approved before project upload.");
+  const data=new FormData(form),file=data.get("project_file"),title=String(data.get("title")||"").trim(),description=String(data.get("description")||"").trim(),category=String(data.get("category")||"").trim(),price=Math.round(Number(data.get("price"))*100),demo=String(data.get("demo_url")||"").trim();
+  if(!Number.isSafeInteger(price)||price<0)throw new Error("Enter a valid project price.");
+  if(demo&&new URL(demo).protocol!=="https:")throw new Error("Demo URL must use HTTPS.");
+  if(file instanceof File&&file.size){
+   if(file.size>25*1024*1024)throw new Error("Project file must be 25 MB or smaller.");
+   const allowed=["application/zip","application/x-zip-compressed","application/pdf","image/jpeg","image/png","image/webp","text/plain"];
+   if(!allowed.includes(file.type))throw new Error("Only ZIP, PDF, JPG, PNG, WEBP or TXT files are allowed.");
+   const ext=(file.name.split(".").pop()||"").toLowerCase();if(!["zip","pdf","jpg","jpeg","png","webp","txt"].includes(ext))throw new Error("Unsupported project file extension.");
+   uploadedPath=user.id+"/"+crypto.randomUUID()+"."+ext;
+   const upload=await window.marketSupabase.storage.from("seller-project-files").upload(uploadedPath,file,{contentType:file.type,upsert:false});if(upload.error)throw upload.error;
+  }
+  const insert=await window.marketSupabase.from("seller_projects").insert({seller_user_id:user.id,title:title,description:description,category:category,price_paise:price,demo_url:demo||null,file_path:uploadedPath,status:"pending"});
+  if(insert.error)throw insert.error;
+  form.reset();form.querySelector('[name="price"]').value="0";message.textContent="Project submitted for admin review. It will be published after approval.";await loadSellerProjectList(user.id);
+ }catch(err){if(uploadedPath)await window.marketSupabase.storage.from("seller-project-files").remove([uploadedPath]);message.textContent=err.message||"Project upload failed.";}
+ finally{button.disabled=false;}
+});
 function escapeProductText(value) {
   return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
 }
@@ -235,11 +270,12 @@ async function loadAdminDashboard(){
  const supabase=window.marketSupabase;
  if(!supabase){adminNotice("Account service unavailable.",true);return;}
  const {data:{user}}=await supabase.auth.getUser();
- if(!user||user.app_metadata?.role!=="admin"){adminNotice("Administrator access required. Ask the project owner to grant the admin role securely in Supabase Auth app_metadata.",true);$("#adminApplications").textContent="Not authorized." ;$("#adminProducts").textContent="Not authorized.";return;}
+ if(!user||user.app_metadata?.role!=="admin"){adminNotice("Administrator access required. Ask the project owner to grant the admin role securely in Supabase Auth app_metadata.",true);$("#adminApplications").textContent="Not authorized." ;$("#adminProducts").textContent="Not authorized.";$("#adminSellerProjects").textContent="Not authorized.";return;}
  adminNotice("Administrator access verified.");
- const [apps,products,orders]=await Promise.all([
+ const [apps,products,projects,orders]=await Promise.all([
   supabase.from("seller_applications").select("id,user_id,business_name,contact_name,phone,category,status,created_at").order("created_at",{ascending:false}).limit(100),
   supabase.from("products").select("id,seller_user_id,name,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_active,is_owner,created_at").order("created_at",{ascending:false}).limit(100),
+   supabase.from("seller_projects").select("id,seller_user_id,title,description,category,price_paise,demo_url,file_path,status,created_at").order("created_at",{ascending:false}).limit(100),
   supabase.from("orders").select("id,buyer_user_id,status,subtotal_paise,delivery_address,buyer_note,created_at,order_items(id,product_name,quantity,unit_price_paise,line_total_paise),supplier_fulfilments(id,supplier_name,supplier_contact,status,tracking_reference,internal_note)").order("created_at",{ascending:false}).limit(100)
  ]);
  if(apps.error){$("#adminApplications").textContent="Could not load seller applications: "+apps.error.message;}else{
@@ -247,6 +283,9 @@ async function loadAdminDashboard(){
  }
  if(products.error){$("#adminProducts").textContent="Could not load products: "+products.error.message;}else{
   $("#adminProducts").innerHTML=products.data.length?products.data.map(x=>`<article class="admin-row"><div class="admin-product-main">${x.image_url?`<img src="${x.image_url}" alt="">`:""}<div><b>${escapeProductText(x.name)}${x.is_owner?' <span class="owner-product-badge">Official Store · Verified Owner</span>':""}</b><small>${escapeProductText(x.category)} · ₹${(x.price_paise/100).toFixed(2)} / ${escapeProductText(x.unit)}</small><small>MOQ ${x.minimum_quantity} · Stock ${x.stock_quantity} · ${x.is_active?"Live":"Pending"}</small></div></div><div class="admin-actions"><button data-product-active="${!x.is_active}" data-id="${x.id}">${x.is_active?"Deactivate":"Activate"}</button></div></article>`).join(""):"No products submitted yet.";
+ }
+ if(projects.error){$("#adminSellerProjects").textContent="Could not load projects: "+projects.error.message;}else{
+  $("#adminSellerProjects").innerHTML=projects.data.length?projects.data.map(p=>'<article class="admin-row"><div><b>'+escapeProductText(p.title)+'</b><small>'+escapeProductText(p.category)+' · '+money(p.price_paise/100)+'</small><small>'+escapeProductText(p.description)+'</small><small>'+(p.file_path?"Private file attached":"No file")+' · '+escapeProductText(p.status)+'</small>'+(p.demo_url?'<small><a href="'+escapeProductText(p.demo_url)+'" target="_blank" rel="noopener">Open demo</a></small>':"")+'</div><div class="admin-actions">'+(p.status!=="approved"?'<button data-project-action="approved" data-id="'+p.id+'">Approve</button>':"")+(p.status!=="rejected"?'<button data-project-action="rejected" data-id="'+p.id+'">Reject</button>':"")+'</div></article>').join(""):"No project submissions yet.";
  }
  if(orders.error){$("#adminOrders").textContent="Could not load orders: "+orders.error.message;}else{
   const orderStates=["placed","confirmed","forwarded","dispatched","delivered","cancelled"];
@@ -295,6 +334,11 @@ $("#adminOrders")?.addEventListener("submit",async e=>{
  const b=form.querySelector('button[type="submit"]');b.disabled=true;
  const {error}=await window.marketSupabase.from("supplier_fulfilments").upsert(payload,{onConflict:"order_id"});
  if(error)adminNotice("Supplier handoff save failed: "+error.message,true);else{adminNotice("Supplier handoff saved. Contact supplier separately to actually forward the order.");await loadAdminDashboard();}b.disabled=false;
+});
+$("#adminSellerProjects")?.addEventListener("click",async e=>{
+ const b=e.target.closest("[data-project-action]");if(!b)return;b.disabled=true;
+ const result=await window.marketSupabase.from("seller_projects").update({status:b.dataset.projectAction,reviewed_at:new Date().toISOString()}).eq("id",b.dataset.id);
+ if(result.error)adminNotice("Project review failed: "+result.error.message,true);else{adminNotice("Project submission updated.");await loadAdminDashboard();}b.disabled=false;
 });
 $("#adminApplications")?.addEventListener("click",async e=>{
  const b=e.target.closest("[data-app-action]");if(!b)return;b.disabled=true;
