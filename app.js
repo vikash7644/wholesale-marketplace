@@ -377,13 +377,12 @@ $("#adminProducts")?.addEventListener("click",async e=>{
 });
 
 
-// Load approved, active products from the live database. Demo cards remain visible
-// only as clearly marked fallback content until the first approved seller listing exists.
+// Load only active products belonging to approved sellers from the safe public catalogue view.
 async function loadPublicProducts(){
  if(!window.marketSupabase)return;
- const {data,error}=await window.marketSupabase.from("products")
-  .select("id,name,description,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_owner")
-  .eq("is_active",true).order("created_at",{ascending:false}).limit(200);
+ const {data,error}=await window.marketSupabase.from("public_catalogue")
+  .select("id,name,description,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_owner,created_at")
+  .order("created_at",{ascending:false}).limit(200);
  if(error){console.warn("Live catalogue unavailable; showing demo catalogue.",error.message);return;}
  if(!data?.length){state.catalogueLive=false;const head=document.querySelector("#catalogue .section-head p");if(head)head.textContent="Sample catalogue preview — approved seller products will appear here.";return;}
  state.catalogueLive=true;products=data.map(p=>({
