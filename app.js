@@ -43,21 +43,44 @@ $("#checkoutForm").addEventListener("submit",async event=>{
  }catch(error){message.textContent=error.message||"Could not submit order. Please retry."; }
  finally{button.disabled=false;}
 });
-$("#sellerForm").addEventListener("submit",async e=>{
- e.preventDefault();
+$("#sellerForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ const form=event.currentTarget;
+ const button=form.querySelector('button[type="submit"]');
  const msg=$("#formMessage");
- if(!window.marketSupabase){msg.textContent="Account service is not configured.";return;}
- const {data:{user},error:authError}=await window.marketSupabase.auth.getUser();
- if(authError){msg.textContent="Could not verify your sign-in. Please refresh and sign in again.";return;}
- if(!user){msg.textContent="Sign in first. Your application will be submitted after sign-in.";showAuth();setAuthMessage("Sign in or create your account, then return to Become a seller and submit the form.");return;}
- const f=new FormData(e.currentTarget);
- const application={user_id:user.id,business_name:String(f.get("business")).trim(),contact_name:String(f.get("name")).trim(),phone:String(f.get("phone")).trim(),category:String(f.get("category")),status:"pending"};
- const {data:existing,error:lookupError}=await window.marketSupabase.from("seller_applications").select("id,status").eq("user_id",user.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
- if(lookupError){msg.textContent="Could not check your existing application: "+lookupError.message;return;}
- if(existing){msg.textContent="Your seller application already exists. Status: "+existing.status+".";if(typeof loadSellerProducts==="function")loadSellerProducts();return;}
- const {error}=await window.marketSupabase.from("seller_applications").insert(application);
- msg.textContent=error?"Application could not be saved: "+error.message:"Application submitted successfully! Status: pending admin review.";
- if(!error){e.currentTarget.reset();if(typeof loadSellerProducts==="function")loadSellerProducts();}
+ msg.textContent="";
+ if(!window.marketSupabase){msg.textContent="Account service is unavailable. Please refresh and retry.";return;}
+ button.disabled=true;
+ button.textContent="Submitting…";
+ try{
+  const {data:{user},error:authError}=await window.marketSupabase.auth.getUser();
+  if(authError)throw authError;
+  if(!user){
+   msg.textContent="Pehle account mein sign in karein. Sign in ke baad isi form ko dobara submit karein.";
+   showAuth();
+   setAuthMessage("Sign in karein ya Create account banayein. Phir Become a seller form submit karein.");
+   return;
+  }
+  const f=new FormData(form);
+  const application={user_id:user.id,business_name:String(f.get("business")).trim(),contact_name:String(f.get("name")).trim(),phone:String(f.get("phone")).trim(),category:String(f.get("category")),status:"pending"};
+  const {data:existing,error:lookupError}=await window.marketSupabase.from("seller_applications").select("id,status").eq("user_id",user.id).order("created_at",{ascending:false}).limit(1).maybeSingle();
+  if(lookupError)throw lookupError;
+  if(existing){
+   msg.textContent="Aapki seller application pehle se maujood hai. Status: "+existing.status+".";
+   await loadSellerProducts();
+   return;
+  }
+  const {error}=await window.marketSupabase.from("seller_applications").insert(application);
+  if(error)throw error;
+  form.reset();
+  msg.textContent="Application successfully submit ho gayi! Status: Pending admin approval.";
+  await loadSellerProducts();
+ }catch(error){
+  msg.textContent="Application submit nahi hui: "+(error?.message||"Unknown error")+". Dobara try karein.";
+ }finally{
+  button.disabled=false;
+  button.textContent="Submit interest →";
+ }
 });
 renderCategories();renderFilters();renderProducts();renderCart();
 const SUPABASE_URL="https://vhnelmarhqvsncgczazk.supabase.co";const SUPABASE_PUBLISHABLE_KEY="sb_publishable_2uLOLMsuzy2vI9FPe2GbrQ_M94h136I";window.marketSupabase=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY)||null;let authMode="signin";function showAuth(){$("#authModal").classList.add("show");$("#overlay").classList.add("show");}function hideAuth(){$("#authModal").classList.remove("show");$("#overlay").classList.remove("show");}function setAuthMessage(m){$("#authMessage").textContent=m;}function updateAuthButton(user){$("#authOpen").textContent=user?(user.email?.split("@")[0]||"My account")+" · Sign out":"Sign in / Join";const admin=!!(user?.app_metadata?.role==="admin");$("#adminNav").hidden=!admin;$("#ordersNav").hidden=!user;}$("#authOpen").addEventListener("click",async()=>{if(!window.marketSupabase){toast("Account service unavailable");return;}const {data:{user}}=await window.marketSupabase.auth.getUser();if(user){await window.marketSupabase.auth.signOut();updateAuthButton(null);toast("Signed out");}else showAuth();});$("#authClose").addEventListener("click",hideAuth);$("#authToggle").addEventListener("click",()=>{authMode=authMode==="signin"?"signup":"signin";$("#authTitle").textContent=authMode==="signin"?"Welcome back":"Create your account";$("#authHelp").textContent=authMode==="signin"?"Sign in to continue.":"Join as a retailer and discover wholesale products.";$("#authSubmit").textContent=authMode==="signin"?"Sign in":"Create account";$("#authToggle").textContent=authMode==="signin"?"Create account":"I already have an account";$("#fullNameLabel").hidden=authMode!=="signup";setAuthMessage("");});$("#authForm").addEventListener("submit",async e=>{e.preventDefault();if(!window.marketSupabase){setAuthMessage("Account service unavailable. Refresh and try again.");return;}const f=new FormData(e.currentTarget);$("#authSubmit").disabled=true;let result;if(authMode==="signup"){result=await window.marketSupabase.auth.signUp({email:f.get("email"),password:f.get("password"),options:{data:{full_name:f.get("full_name")},emailRedirectTo:window.location.origin+"/"}});if(!result.error&&result.data.user)await window.marketSupabase.from("profiles").upsert({id:result.data.user.id,full_name:f.get("full_name")||""});}else result=await window.marketSupabase.auth.signInWithPassword({email:f.get("email"),password:f.get("password")});$("#authSubmit").disabled=false;if(result.error){setAuthMessage(result.error.message);return;}if(authMode==="signup"&&!result.data.session){setAuthMessage("Account created. Check your email to confirm, then sign in.");return;}updateAuthButton(result.data.user);setAuthMessage("Signed in successfully.");setTimeout(hideAuth,700);});if(window.marketSupabase){window.marketSupabase.auth.getUser().then(({data})=>updateAuthButton(data.user));window.marketSupabase.auth.onAuthStateChange((_event,session)=>{updateAuthButton(session?.user||null);if(typeof loadSellerProducts==="function")loadSellerProducts();});}
