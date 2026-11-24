@@ -216,14 +216,36 @@ async function loadAdminDashboard(){
   $("#adminOrders").innerHTML=orders.data.length?orders.data.map(o=>{
    const fulfil=o.supplier_fulfilments?.[0]||{};
    const items=(o.order_items||[]).map(i=>escapeProductText(i.product_name)+" × "+i.quantity).join(", ");
-   const address=typeof o.delivery_address==="object"?JSON.stringify(o.delivery_address):String(o.delivery_address||"");
+   const delivery=o.delivery_address&&typeof o.delivery_address==="object"?o.delivery_address:{};
+   const address=[delivery.full_name,delivery.phone,delivery.address_line,delivery.city,delivery.state,delivery.pincode,delivery.country].filter(Boolean).join(", ");
+   const waMessage=[
+    "NEW WHOLESALE DELIVERY REQUEST",
+    "Marketplace order: "+o.id,
+    "Order total: "+money(o.subtotal_paise/100),
+    "Items: "+(o.order_items||[]).map(i=>i.product_name+" x "+i.quantity).join("; "),
+    "Recipient: "+(delivery.full_name||""),
+    "Customer mobile: "+(delivery.phone||""),
+    "Delivery address: "+[delivery.address_line,delivery.city,delivery.state,delivery.pincode,delivery.country].filter(Boolean).join(", "),
+    "Buyer note: "+(o.buyer_note||"None"),
+    "Please confirm availability and delivery timeline."
+   ].join("\\n");
    return `<article class="admin-order"><div class="admin-order-head"><div><b>Order #${o.id.slice(0,8)}</b><small>${new Date(o.created_at).toLocaleString("en-IN")} · ${escapeProductText(o.status)}</small><small>${money(o.subtotal_paise/100)} · ${escapeProductText(items)}</small><small>Delivery: ${escapeProductText(address)}</small>${o.buyer_note?`<small>Note: ${escapeProductText(o.buyer_note)}</small>`:""}</div></div>
     <div class="admin-order-controls"><label>Order status<select data-order-status>${orderStates.map(st=>`<option value="${st}" ${o.status===st?"selected":""}>${st}</option>`).join("")}</select><button data-save-order="${o.id}">Update status</button></label></div>
-    <form class="supplier-form" data-supplier-order="${o.id}"><b>Supplier handoff</b><input name="supplier_name" required placeholder="Supplier / party name" value="${escapeProductText(fulfil.supplier_name||"")}"><input name="supplier_contact" placeholder="Supplier phone / contact" value="${escapeProductText(fulfil.supplier_contact||"")}"><div class="admin-order-controls"><select name="status">${["not_forwarded","forwarded","accepted","dispatched","delivered"].map(st=>`<option value="${st}" ${(fulfil.status||"not_forwarded")===st?"selected":""}>${st.replaceAll("_"," ")}</option>`).join("")}</select><input name="tracking_reference" placeholder="Tracking / LR number" value="${escapeProductText(fulfil.tracking_reference||"")}"></div><textarea name="internal_note" rows="2" placeholder="Internal note">${escapeProductText(fulfil.internal_note||"")}</textarea><button type="submit">Save supplier handoff</button><small>Record supplier handoff manually; no message is sent automatically.</small></form></article>`;
+    <form class="supplier-form" data-supplier-order="${o.id}"><b>Supplier handoff</b><input name="supplier_name" required placeholder="Supplier / party name" value="${escapeProductText(fulfil.supplier_name||"")}"><input name="supplier_contact" placeholder="Supplier WhatsApp number (include country code)" value="${escapeProductText(fulfil.supplier_contact||"")}"><div class="admin-order-controls"><select name="status">${["not_forwarded","forwarded","accepted","dispatched","delivered"].map(st=>`<option value="${st}" ${(fulfil.status||"not_forwarded")===st?"selected":""}>${st.replaceAll("_"," ")}</option>`).join("")}</select><input name="tracking_reference" placeholder="Tracking / LR number" value="${escapeProductText(fulfil.tracking_reference||"")}"></div><textarea name="internal_note" rows="2" placeholder="Internal note">${escapeProductText(fulfil.internal_note||"")}</textarea><button type="submit">Save supplier handoff</button><button type="button" data-whatsapp-forward data-message="${encodeURIComponent(waMessage)}">Prepare WhatsApp order</button><small>WhatsApp opens a prefilled draft only. Review customer delivery details and tap Send yourself.</small></form></article>`;
   }).join(""):"No orders received yet.";
  }
 }
 $("#adminOrders")?.addEventListener("click",async e=>{
+ const wa=e.target.closest("[data-whatsapp-forward]");
+ if(wa){
+  const form=wa.closest("[data-supplier-order]");
+  const raw=String(new FormData(form).get("supplier_contact")||"");
+  const phone=raw.replace(/[^0-9]/g,"");
+  if(phone.length<10||phone.length>15){adminNotice("Enter supplier WhatsApp number with country code (10–15 digits).",true);return;}
+  const message=decodeURIComponent(wa.dataset.message||"");
+  window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(message),"_blank","noopener,noreferrer");
+  return;
+ }
  const b=e.target.closest("[data-save-order]");if(!b)return;
  const row=b.closest(".admin-order");const status=row.querySelector("[data-order-status]").value;b.disabled=true;
  const {error}=await window.marketSupabase.from("orders").update({status}).eq("id",b.dataset.saveOrder);
