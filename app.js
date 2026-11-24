@@ -73,7 +73,7 @@ $("#sellerForm").addEventListener("submit",async event=>{
   const {error}=await window.marketSupabase.from("seller_applications").insert(application);
   if(error)throw error;
   form.reset();
-  msg.textContent="Application successfully submit ho gayi! Status: Pending admin approval.";
+  msg.textContent="Application submitted. Verified accounts are approved automatically; refresh after email confirmation if seller access does not unlock.";
   await loadSellerProducts();
  }catch(error){
   msg.textContent="Application submit nahi hui: "+(error?.message||"Unknown error")+". Dobara try karein.";
@@ -167,7 +167,7 @@ async function loadSellerProducts() {
     notice.textContent = "Seller application status: " + application.status + ". Product uploads unlock after approval.";
     form.hidden = true; list.textContent = "Your application is awaiting approval."; return;
   }
-  notice.textContent = "Seller approved. You can upload products and digital projects; each submission is reviewed before publishing.";
+  notice.textContent = "Seller approved. Products go live immediately after upload; digital projects remain subject to admin review.";
   form.hidden = false;
   const projectForm=document.querySelector("#sellerProjectForm"); if(projectForm)projectForm.hidden=false;
   await loadSellerProjectList(user.id);
@@ -253,7 +253,7 @@ document.querySelector("#productForm")?.addEventListener("submit", async event =
       await supabase.storage.from(PRODUCT_IMAGE_BUCKET).remove([path]);
       throw insertError;
     }
-    form.reset(); setProductMessage("Product submitted. It will appear in the public catalogue after admin approval.");
+    form.reset(); setProductMessage("Product uploaded and published. It is now visible in the public catalogue.");
     await loadSellerProducts();
   } catch (error) {
     setProductMessage(error.message || "Product upload failed. Please try again.", true);
