@@ -72,3 +72,9 @@
 .buyer-order small{font-size:10px;color:#7d8997}
 .buyer-order strong{font-size:14px;color:#182b49}
 .buyer-order ul{margin:0;padding-left:18px;font-size:11px;color:#596579;display:grid;gap:4px}
+
+.owner-catalogue-section{border:1px solid #dbe4f0;border-radius:18px;padding:18px;margin:20px 0;background:#f8fafc}
+.owner-product-form,.owner-csv-tools{display:grid;gap:12px;margin:14px 0}
+.owner-csv-tools{border-top:1px solid #dbe4f0;padding-top:16px}
+.owner-csv-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.owner-product-badge{display:inline-block;margin-left:5px;padding:3px 7px;border-radius:999px;background:#e7f5ec;color:#17633a;font-size:10px;font-weight:800;vertical-align:middle}
