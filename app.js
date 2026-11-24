@@ -246,7 +246,7 @@ document.querySelector("#productForm")?.addEventListener("submit", async event =
       description: String(data.get("description") || "").trim(), category: data.get("category"),
       price_paise: pricePaise, unit: String(data.get("unit")).trim(),
       minimum_quantity: Number(data.get("minimum_quantity")), stock_quantity: Number(data.get("stock_quantity")),
-      image_url: publicData.publicUrl, is_active: false
+      image_url: publicData.publicUrl, is_active: true
     };
     const { error: insertError } = await supabase.from("products").insert(product);
     if (insertError) {
