@@ -194,6 +194,28 @@ function openAdmin(){ $("#adminModal").classList.add("show"); $("#overlay").clas
 $("#adminNav")?.addEventListener("click",openAdmin);
 $("#adminClose")?.addEventListener("click",()=>{$("#adminModal").classList.remove("show");$("#overlay").classList.remove("show");});
 function adminNotice(message,isError=false){const el=$("#adminMessage");el.textContent=message;el.style.color=isError?"#b42318":"";}
+// Owner-only product creation and bulk CSV import.
+function ownerProductPayload(row,userId){
+ const name=String(row.name||"").trim(),category=String(row.category||"").trim(),unit=String(row.unit||"piece").trim();
+ const price=Number(row.price_rupees??row.price),moq=Number(row.minimum_quantity??1),stock=Number(row.stock_quantity??0),image=String(row.image_url||"").trim();
+ if(!name||name.length>120||!category||category.length>80||!unit||unit.length>40)throw new Error("Name, category and unit are required.");
+ if(!Number.isFinite(price)||price<=0||price*100>2147483647)throw new Error("Price must be a positive rupee amount.");
+ if(!Number.isInteger(moq)||moq<1||!Number.isInteger(stock)||stock<0)throw new Error("MOQ must be at least 1 and stock cannot be negative.");
+ if(image&&!/^https:\/\//i.test(image))throw new Error("Image URL must start with https://");
+ return {seller_user_id:userId,name,description:String(row.description||"").trim().slice(0,2000),category,price_paise:Math.round(price*100),unit,minimum_quantity:moq,stock_quantity:stock,image_url:image||null,is_active:false,is_owner:true};
+}
+function parseProductCsv(source){
+ const rows=[];let row=[],cell="",quoted=false;
+ for(let i=0;i<source.length;i++){const ch=source[i];if(quoted){if(ch==='"'&&source[i+1]==='"'){cell+='"';i++;}else if(ch==='"')quoted=false;else cell+=ch;}else if(ch==='"')quoted=true;else if(ch===","){row.push(cell);cell="";}else if(ch==="\n"){row.push(cell);rows.push(row);row=[];cell="";}else if(ch!=="\r")cell+=ch;}
+ if(quoted)throw new Error("CSV has an unclosed quoted field.");if(cell.length||row.length){row.push(cell);rows.push(row);}
+ const clean=rows.filter(r=>r.some(v=>String(v).trim()));if(clean.length<2)throw new Error("CSV needs a header and at least one product.");
+ const headers=clean[0].map(v=>String(v).trim().toLowerCase()),missing=["name","category","price_rupees"].filter(k=>!headers.includes(k));if(missing.length)throw new Error("Missing CSV columns: "+missing.join(", "));
+ return clean.slice(1).map((r,i)=>{const o={};headers.forEach((k,n)=>o[k]=r[n]??"");o.minimum_quantity=o.minimum_quantity||"1";o.stock_quantity=o.stock_quantity||"0";o.unit=o.unit||"piece";o.csv_row=i+2;return o;});
+}
+$("#downloadProductCsv")?.addEventListener("click",()=>{const sample="name,description,category,price_rupees,unit,minimum_quantity,stock_quantity,image_url\nPremium rice 25 kg,Wholesale rice bag,Grocery & daily needs,1250,bag,5,100,\n";const blob=new Blob([sample],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="owner-products-template.csv";a.click();URL.revokeObjectURL(url);});
+$("#ownerProductForm")?.addEventListener("submit",async e=>{e.preventDefault();const form=e.currentTarget,msg=$("#ownerProductMessage"),button=form.querySelector('button[type="submit"]');button.disabled=true;msg.textContent="Saving…";try{const {data:{user}}=await window.marketSupabase.auth.getUser();if(!user||user.app_metadata?.role!=="admin")throw new Error("Admin access required.");const payload=ownerProductPayload(Object.fromEntries(new FormData(form)),user.id);const {error}=await window.marketSupabase.from("products").insert(payload);if(error)throw error;form.reset();form.querySelector('[name="unit"]').value="piece";form.querySelector('[name="minimum_quantity"]').value="1";form.querySelector('[name="stock_quantity"]').value="0";msg.textContent="Product added as Pending. Activate it in Product approvals.";await loadAdminDashboard();}catch(err){msg.textContent=err.message||"Could not add product.";}finally{button.disabled=false;}});
+$("#importProductCsv")?.addEventListener("click",async()=>{const file=$("#ownerCsvFile")?.files?.[0],msg=$("#ownerCsvMessage"),button=$("#importProductCsv");if(!file){msg.textContent="Choose a CSV file first.";return;}button.disabled=true;msg.textContent="Validating…";try{if(file.size>2*1024*1024)throw new Error("CSV must be 2 MB or smaller.");const rows=parseProductCsv(await file.text());if(rows.length>500)throw new Error("Maximum 500 products per file.");const {data:{user}}=await window.marketSupabase.auth.getUser();if(!user||user.app_metadata?.role!=="admin")throw new Error("Admin access required.");const payload=rows.map(row=>{try{return ownerProductPayload(row,user.id);}catch(err){throw new Error("CSV row "+row.csv_row+": "+err.message);}});for(let i=0;i<payload.length;i+=50){const {error}=await window.marketSupabase.from("products").insert(payload.slice(i,i+50));if(error)throw new Error("Import stopped at row "+(i+2)+": "+error.message);}msg.textContent=payload.length+" products imported as Pending. Activate them in Product approvals.";$("#ownerCsvFile").value="";await loadAdminDashboard();}catch(err){msg.textContent=err.message||"CSV import failed.";}finally{button.disabled=false;}});
+
 async function loadAdminDashboard(){
  const supabase=window.marketSupabase;
  if(!supabase){adminNotice("Account service unavailable.",true);return;}
@@ -202,14 +224,14 @@ async function loadAdminDashboard(){
  adminNotice("Administrator access verified.");
  const [apps,products,orders]=await Promise.all([
   supabase.from("seller_applications").select("id,user_id,business_name,contact_name,phone,category,status,created_at").order("created_at",{ascending:false}).limit(100),
-  supabase.from("products").select("id,seller_user_id,name,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_active,created_at").order("created_at",{ascending:false}).limit(100),
+  supabase.from("products").select("id,seller_user_id,name,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_active,is_owner,created_at").order("created_at",{ascending:false}).limit(100),
   supabase.from("orders").select("id,buyer_user_id,status,subtotal_paise,delivery_address,buyer_note,created_at,order_items(id,product_name,quantity,unit_price_paise,line_total_paise),supplier_fulfilments(id,supplier_name,supplier_contact,status,tracking_reference,internal_note)").order("created_at",{ascending:false}).limit(100)
  ]);
  if(apps.error){$("#adminApplications").textContent="Could not load seller applications: "+apps.error.message;}else{
   $("#adminApplications").innerHTML=apps.data.length?apps.data.map(x=>`<article class="admin-row"><div><b>${escapeProductText(x.business_name)}</b><small>${escapeProductText(x.contact_name)} · ${escapeProductText(x.phone)}</small><small>${escapeProductText(x.category)} · ${escapeProductText(x.status)}</small></div><div class="admin-actions">${x.status!=="approved"?`<button data-app-action="approved" data-id="${x.id}">Approve</button>`:""}${x.status!=="rejected"?`<button data-app-action="rejected" data-id="${x.id}">Reject</button>`:""}</div></article>`).join(""):"No seller applications yet.";
  }
  if(products.error){$("#adminProducts").textContent="Could not load products: "+products.error.message;}else{
-  $("#adminProducts").innerHTML=products.data.length?products.data.map(x=>`<article class="admin-row"><div class="admin-product-main">${x.image_url?`<img src="${x.image_url}" alt="">`:""}<div><b>${escapeProductText(x.name)}</b><small>${escapeProductText(x.category)} · ₹${(x.price_paise/100).toFixed(2)} / ${escapeProductText(x.unit)}</small><small>MOQ ${x.minimum_quantity} · Stock ${x.stock_quantity} · ${x.is_active?"Live":"Pending"}</small></div></div><div class="admin-actions"><button data-product-active="${!x.is_active}" data-id="${x.id}">${x.is_active?"Deactivate":"Activate"}</button></div></article>`).join(""):"No products submitted yet.";
+  $("#adminProducts").innerHTML=products.data.length?products.data.map(x=>`<article class="admin-row"><div class="admin-product-main">${x.image_url?`<img src="${x.image_url}" alt="">`:""}<div><b>${escapeProductText(x.name)}${x.is_owner?' <span class="owner-product-badge">Official Store · Verified Owner</span>':""}</b><small>${escapeProductText(x.category)} · ₹${(x.price_paise/100).toFixed(2)} / ${escapeProductText(x.unit)}</small><small>MOQ ${x.minimum_quantity} · Stock ${x.stock_quantity} · ${x.is_active?"Live":"Pending"}</small></div></div><div class="admin-actions"><button data-product-active="${!x.is_active}" data-id="${x.id}">${x.is_active?"Deactivate":"Activate"}</button></div></article>`).join(""):"No products submitted yet.";
  }
  if(orders.error){$("#adminOrders").textContent="Could not load orders: "+orders.error.message;}else{
   const orderStates=["placed","confirmed","forwarded","dispatched","delivered","cancelled"];
@@ -276,14 +298,14 @@ $("#adminProducts")?.addEventListener("click",async e=>{
 async function loadPublicProducts(){
  if(!window.marketSupabase)return;
  const {data,error}=await window.marketSupabase.from("products")
-  .select("id,name,description,category,price_paise,unit,minimum_quantity,stock_quantity,image_url")
+  .select("id,name,description,category,price_paise,unit,minimum_quantity,stock_quantity,image_url,is_owner")
   .eq("is_active",true).order("created_at",{ascending:false}).limit(200);
  if(error){console.warn("Live catalogue unavailable; showing demo catalogue.",error.message);return;}
  if(!data?.length){state.catalogueLive=false;const head=document.querySelector("#catalogue .section-head p");if(head)head.textContent="Sample catalogue preview — approved seller products will appear here.";return;}
  state.catalogueLive=true;products=data.map(p=>({
   id:p.id,name:p.name,description:p.description,category:p.category,
   price:p.price_paise/100,unit:"per "+p.unit,moq:"MOQ: "+p.minimum_quantity+" "+p.unit,
-  tag:"Verified listing",bg:"#eef2e8",icon:"📦",imageUrl:p.image_url
+  tag:p.is_owner?"Official Store · Verified Owner":"Verified listing",bg:"#eef2e8",icon:"📦",imageUrl:p.image_url,isOwner:p.is_owner
  }));
  state.cart={};renderFilters();renderProducts();renderCart();
  const head=document.querySelector("#catalogue .section-head p");if(head)head.textContent="Live products listed by approved marketplace sellers.";
