@@ -86,3 +86,8 @@ This is a static frontend. Open `index.html` in a browser or serve the directory
 ## Vercel deployment
 
 Framework preset: **Other**. Build command: leave empty. Output directory: `.`.
+
+
+## Supplier WhatsApp handoff
+
+- Admins can prepare a WhatsApp message with order items and delivery details for a supplier. It opens a draft only; the admin must review and press Send. No automatic WhatsApp/SMS/email is sent.
