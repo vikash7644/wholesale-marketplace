@@ -32,3 +32,11 @@ grant insert, update, delete on public.project_commission_rules to authenticated
 grant insert, update, delete on public.project_commission_ledger to authenticated;
 grant insert, update, delete on public.project_commission_payouts to authenticated;
 grant insert, update, delete on public.seller_projects to authenticated;
+
+-- Remove broad default grants for future objects created by the migration owner.
+alter default privileges in schema public
+  revoke all on tables from anon, authenticated;
+alter default privileges in schema public
+  revoke all on sequences from anon, authenticated;
+alter default privileges in schema public
+  revoke all on functions from public, anon, authenticated;
