@@ -40,6 +40,13 @@ Deno.serve(async (req: Request) => {
     const note = payload.buyer_note ?? "";
     if (!Array.isArray(items) || items.length < 1 || items.length > 100) return json({ error: "Cart must contain 1 to 100 items" }, 400);
     if (!address || typeof address !== "object" || Array.isArray(address)) return json({ error: "Delivery address is required" }, 400);
+    const delivery = address as Record<string, unknown>;
+    for (const field of ["full_name", "phone", "address_line", "city", "state", "pincode"]) {
+      if (typeof delivery[field] !== "string" || !(delivery[field] as string).trim()) return json({ error: `Delivery address field "${field}" is required` }, 400);
+      if ((delivery[field] as string).length > 500) return json({ error: `Delivery address field "${field}" is too long` }, 400);
+    }
+    if (!/^[0-9]{10}$/.test((delivery.phone as string).trim())) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
+    if (!/^[0-9]{6}$/.test((delivery.pincode as string).trim())) return json({ error: "Enter a valid 6-digit PIN code" }, 400);
     if (typeof note !== "string" || note.length > 1000) return json({ error: "Buyer note must be 1000 characters or fewer" }, 400);
 
     const cleanItems = [];
