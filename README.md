@@ -18,13 +18,16 @@ VyaparSetu is currently a read-only public catalogue for discovering wholesale p
 
 ## Data handling scope
 
-The browser uses the Supabase publishable key only to read the public fields of active products: product name, description, category, price, unit, minimum quantity, public image URL and owner-listing flag. It does not initialize Supabase Auth or submit visitor information.
+The browser uses the Supabase publishable key only to read public fields of active products: product name, description, category, price, unit, minimum quantity, public image URL and owner-listing flag. It does not initialize Supabase Auth or submit visitor information.
 
-Hosting and network providers may still process ordinary technical request data such as IP address, device/browser headers and server logs. This frontend change does not erase previously stored database records, existing Auth users, uploaded files, provider logs, or backups. Those are separate backend/account retention tasks and should not be deleted without an explicit data-retention decision.
+Hosting and network providers may still process ordinary technical request data such as IP address, device/browser headers and server logs. This frontend change does not erase previously stored database records, existing Auth users, uploaded files, provider logs, or backups. Those are separate data-retention tasks and should not be deleted without an explicit decision.
 
 ## Backend status
 
-Supabase remains connected for public catalogue reads. Existing authenticated database policies and the `marketplace-api` Edge Function are not called by this read-only frontend. Seller upload buckets and historical account/order tables are left untouched; the public website no longer exposes controls for them.
+- Supabase remains connected for public catalogue reads.
+- The `marketplace-api` Edge Function has been replaced with a `410 Gone` response, so its previous order creation and order-history API is disabled.
+- Supabase Auth and historical seller-upload storage policies remain configured at the project level, but the public website no longer initializes Auth or exposes signup/login/upload controls. Disabling provider-level signup and revoking historical upload policies would require separate backend configuration changes.
+- Historical account/order records and uploaded files are left untouched.
 
 ## Deployment
 
