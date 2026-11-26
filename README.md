@@ -1,93 +1,31 @@
-# VyaparSetu — Wholesale Marketplace
+# VyaparSetu — Public Wholesale Catalogue
 
-A mobile-first B2B wholesale and multi-vendor marketplace. The working name is provisional.
+VyaparSetu is currently a read-only public catalogue for discovering wholesale products.
 
-## Current implementation
+## Current public website
 
-- Responsive storefront with category discovery, search, sorting and cart preview.
-- Supabase email/password signup, login and logout.
-- Seller application submission for authenticated users; applications start as pending.
-- Approved sellers can submit product details and JPG/PNG/WEBP photos (up to 5 MB).
-- New seller listings are inactive until admin activation.
-- Public catalogue reads active products from approved sellers; sample cards are preview-only fallbacks.
-- Admin dashboard supports seller application review, product activation/deactivation, order status updates and supplier handoff records.
-- Supabase Edge Function `marketplace-api` is active with JWT verification enabled. It provides authenticated order creation and buyer-scoped order history APIs.
-- Project-scoped commission registry, rules, ledger and payout tables exist. Rules are inactive and default to 0 bps.
+- Public product browsing, category filters, search and price sorting.
+- Active product listings are read from the public catalogue endpoint.
+- Demo preview cards are shown if no active listings are available.
+- No customer or seller login/signup interface.
+- No customer account, checkout, cart, order form, seller application, seller dashboard, product upload, or project upload UI.
+- The website does not request names, phone numbers, email addresses, delivery addresses, or other account details from visitors.
 
 ## Live deployment
 
 - Production: https://wholesale-marketplace-five.vercel.app
 - Vercel project: `wholesale-marketplace`
-- The latest production deployment was confirmed `READY`.
-- Deployment currently uses direct source deployment. GitHub commits do not automatically deploy until Vercel Git integration is configured or a new deployment is explicitly created.
 
-## Backend and security
+## Data handling scope
 
-- Backend: Supabase PostgreSQL, Auth, Row Level Security, Storage and Edge Functions. There is no separate Node/Express server in this version.
-- Supabase project: `wholesale-marketplace`, region `ap-south-1`.
-- Core schema: profiles, seller applications, products, orders, order items, supplier fulfilments and commission records.
-- Checkout uses a trusted database RPC for price, MOQ, stock and total validation.
-- Direct buyer inserts into orders/order_items are restricted; the API requires a valid user JWT.
-- Admin authorization uses trusted `app_metadata.role = admin`; user-editable metadata is not used.
-- Admin RLS policies were inspected and verified on seller applications, products, orders, supplier fulfilments and commission management tables.
-- Never expose a Supabase service-role/secret key in browser code.
+The browser uses the Supabase publishable key only to read the public fields of active products: product name, description, category, price, unit, minimum quantity, public image URL and owner-listing flag. It does not initialize Supabase Auth or submit visitor information.
 
-## Seller uploads
+Hosting and network providers may still process ordinary technical request data such as IP address, device/browser headers and server logs. This frontend change does not erase previously stored database records, existing Auth users, uploaded files, provider logs, or backups. Those are separate backend/account retention tasks and should not be deleted without an explicit data-retention decision.
 
-- Storage bucket: `product-images`, public read, 5 MB limit, JPEG/PNG/WEBP allowlist.
-- Authenticated uploads are restricted to a folder named for the seller's own user ID.
-- Approved sellers can submit listings; sellers cannot activate their own listings.
-- Migrations: `202611230006_product_image_storage.sql` and `202611230007_seller_product_dashboard_read_policy.sql`.
+## Backend status
 
-## Admin operations and owner setup
+Supabase remains connected for public catalogue reads. Existing authenticated database policies and the `marketplace-api` Edge Function are not called by this read-only frontend. Seller upload buckets and historical account/order tables are left untouched; the public website no longer exposes controls for them.
 
-- The admin dashboard is shown only to a signed-in user whose trusted Supabase app metadata contains `role=admin`.
-- It supports approve/reject seller applications, activate/deactivate products, update order status and save supplier contact/tracking details.
-- No admin user has been provisioned through this repository. The first owner account must be granted the admin app-metadata claim through a trusted Supabase Auth administration process. Do not add a public admin signup or put privileged keys in the frontend.
-- The admin interface and RLS policies have not yet been exercised end-to-end with a real admin account.
+## Deployment
 
-## Orders and supplier fulfilment
-
-- The Edge Function exposes `POST /orders` and `GET /orders`; the frontend helper is `window.marketplaceApi`.
-- Signed-in buyers have a **My orders** view showing their recent order requests, status, line items and totals.
-- The catalogue starts with clearly labelled sample cards and switches to approved live database products when available. Checkout is enabled only for live UUID-backed products and signed-in buyers; it captures recipient, phone, full address, city, state and PIN code, then submits an order request through the authenticated Edge Function. No online payment is collected yet.
-- A full browser checkout test with real database product UUIDs and separate buyer/seller accounts is still required.
-- Supplier handoff details are currently saved as internal records only. The app does not automatically send WhatsApp, SMS, email or purchase orders to suppliers.
-
-## Commission management
-
-- Project registry, configurable rules, commission ledger and payout records are installed.
-- The marketplace is registered as a project. Commission rules remain inactive at 0 basis points; no live commission calculation, collection or payout is enabled.
-- Rates and payout terms must be agreed before enabling commission.
-
-## Verified environment snapshot
-
-- Production Vercel deployment: `READY`.
-- Supabase project: `ACTIVE_HEALTHY`.
-- Edge Function `marketplace-api`: `ACTIVE`, JWT verification enabled.
-- Database currently has 0 products, 0 seller applications, 0 orders and 0 commission rules. This is an empty launch database, not evidence of successful real-user checkout.
-- RLS policy inspection confirms admin-only policies for the sensitive admin tables listed above.
-
-## Remaining launch checklist
-
-1. Provision the owner's trusted admin claim through Supabase Auth administration.
-2. Sign in with a real test account and verify seller application, approval, product upload and product activation.
-3. Add genuine supplier-approved catalogue entries, prices, MOQ, stock and product photos.
-4. Add delivery address capture, then run a complete buyer checkout and order-history test.
-5. Confirm supplier handoff workflow and decide whether to add a real email/WhatsApp integration.
-6. Set commission rates and payout rules only after confirming the business terms.
-7. Choose payment methods (for example UPI and COD) and integrate only after provider and settlement details are confirmed.
-8. Publish verified business contact details, privacy policy, terms, refund and seller policies.
-
-## Local preview
-
-This is a static frontend. Open `index.html` in a browser or serve the directory with a static web server.
-
-## Vercel deployment
-
-Framework preset: **Other**. Build command: leave empty. Output directory: `.`.
-
-
-## Supplier WhatsApp handoff
-
-- Admins can prepare a WhatsApp message with order items and delivery details for a supplier. It opens a draft only; the admin must review and press Send. No automatic WhatsApp/SMS/email is sent.
+Vercel project: `wholesale-marketplace`. Framework preset: **Other**. Build command: empty. Output directory: `.`.
